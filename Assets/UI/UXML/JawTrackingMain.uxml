@@ -1,0 +1,64 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="../USS/JawTrackingTheme.uss" />
+    <ui:VisualElement name="app-root" class="app-root layout-wide">
+        <ui:VisualElement name="top-bar" class="top-bar">
+            <ui:Label name="app-title" text="Çene Takip İstemcisi" class="app-title" />
+            <ui:Label name="connection-status" text="Hazır" class="status-pill" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="workspace" class="workspace">
+            <ui:VisualElement name="left-column" class="left-column">
+                <ui:VisualElement name="viewport-panel" class="viewport-panel">
+                    <ui:VisualElement class="viewport-header">
+                        <ui:Label text="3B Çene Görünümü" class="panel-title" />
+                        <ui:Label text="STL modeller yüklendiğinde çene görünümü burada hareket edecek." class="muted-text" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="primary-metrics" class="metric-row">
+                    <ui:VisualElement class="metric-card">
+                        <ui:Label text="Açıklık" class="metric-title" />
+                        <ui:Label name="opening-value" text="0.0 mm" class="metric-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="metric-card">
+                        <ui:Label text="Lateral Sapma" class="metric-title" />
+                        <ui:Label name="lateral-value" text="0.0 mm" class="metric-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="metric-card">
+                        <ui:Label text="Protrüzyon" class="metric-title" />
+                        <ui:Label name="protrusion-value" text="0.0 mm" class="metric-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="metric-card last-metric-card">
+                        <ui:Label text="Güven" class="metric-title" />
+                        <ui:Label name="confidence-value" text="-- %" class="metric-value" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="right-rail" class="right-rail">
+                <ui:VisualElement class="panel">
+                    <ui:Label text="Model Yükleme" class="panel-title" />
+                    <ui:Button name="load-upper-button" text="Üst Çene STL Yükle" class="primary-button" />
+                    <ui:Button name="load-lower-button" text="Alt Çene STL Yükle" class="primary-button" />
+                    <ui:Label name="upper-file-label" text="Üst çene: yüklenmedi" class="muted-text file-label" />
+                    <ui:Label name="lower-file-label" text="Alt çene: yüklenmedi" class="muted-text file-label" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="panel">
+                    <ui:Label text="Bağlantı" class="panel-title" />
+                    <ui:Button name="start-udp-button" text="UDP Başlat" />
+                    <ui:Button name="simulation-button" text="Simülasyon Modu" />
+                    <ui:Label name="packet-rate-label" text="Paket hızı: -- FPS" class="metric-line" />
+                    <ui:Label name="tracking-label" text="Takip: bekleniyor" class="metric-line" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="panel last-panel">
+                    <ui:Label text="Kalibrasyon" class="panel-title" />
+                    <ui:Button name="calibrate-button" text="Dinlenme Pozisyonunu Kalibre Et" />
+                    <ui:Button name="reset-calibration-button" text="Kalibrasyonu Sıfırla" />
+                    <ui:Label name="calibration-label" text="Durum: kalibre edilmedi" class="metric-line" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

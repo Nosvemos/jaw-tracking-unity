@@ -1,0 +1,290 @@
+.app-root {
+    flex-grow: 1;
+    background-color: #101419;
+    color: #eef6f8;
+    font-size: 14px;
+    padding: 16px;
+}
+
+.top-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    min-height: 34px;
+}
+
+.app-title {
+    flex-grow: 1;
+    font-size: 25px;
+    -unity-font-style: bold;
+    color: #f7fbfc;
+    white-space: normal;
+    margin-right: 12px;
+}
+
+.status-pill {
+    flex-shrink: 1;
+    max-width: 360px;
+    background-color: #14323a;
+    color: #9de8f2;
+    padding: 7px 11px;
+    border-radius: 6px;
+    white-space: normal;
+}
+
+.workspace {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: stretch;
+    min-height: 0;
+}
+
+.left-column {
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    margin-right: 14px;
+}
+
+.right-rail {
+    width: 300px;
+    flex-shrink: 0;
+    min-height: 0;
+}
+
+.viewport-panel {
+    flex-grow: 1;
+    height: 0;
+    min-height: 0;
+    background-color: #151c22;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: #26333c;
+    border-radius: 4px;
+    padding: 18px;
+}
+
+.viewport-header {
+    max-width: 620px;
+}
+
+.panel {
+    background-color: #172129;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: #2d3d47;
+    border-radius: 6px;
+    padding: 13px 14px;
+    margin-bottom: 10px;
+}
+
+.last-panel {
+    margin-bottom: 0;
+}
+
+.panel-title {
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: #ffffff;
+    margin-bottom: 9px;
+    white-space: normal;
+}
+
+.muted-text {
+    color: #a8b5bd;
+    white-space: normal;
+}
+
+.file-label {
+    margin-top: 7px;
+    font-size: 13px;
+}
+
+.metric-line {
+    color: #cfdae0;
+    margin-top: 7px;
+    white-space: normal;
+    font-size: 13px;
+}
+
+Button {
+    min-height: 34px;
+    margin-top: 8px;
+    border-radius: 5px;
+    background-color: #24313a;
+    color: #f5fbff;
+    border-color: #36505d;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+Button:hover {
+    background-color: #2d414d;
+}
+
+.primary-button {
+    background-color: #0f7180;
+    border-color: #20a8ba;
+}
+
+.metric-row {
+    flex-direction: row;
+    margin-top: 12px;
+    min-height: 84px;
+}
+
+.metric-card {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 84px;
+    background-color: #172129;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: #2d3d47;
+    border-radius: 6px;
+    padding: 12px;
+    margin-right: 8px;
+}
+
+.last-metric-card {
+    margin-right: 0;
+}
+
+.metric-title {
+    color: #9fb0b8;
+    white-space: normal;
+    font-size: 13px;
+}
+
+.metric-value {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: #9de8f2;
+    white-space: normal;
+    margin-top: 8px;
+}
+
+.layout-medium {
+    padding: 12px;
+    font-size: 13px;
+}
+
+.layout-medium .app-title {
+    font-size: 22px;
+}
+
+.layout-medium .right-rail {
+    width: 280px;
+}
+
+.layout-medium .panel {
+    padding: 11px 12px;
+    margin-bottom: 8px;
+}
+
+.layout-medium .panel-title {
+    font-size: 15px;
+}
+
+.layout-medium Button {
+    min-height: 31px;
+    font-size: 12px;
+    margin-top: 7px;
+}
+
+.layout-medium .metric-line,
+.layout-medium .file-label,
+.layout-medium .metric-title {
+    font-size: 12px;
+}
+
+.layout-medium .metric-card {
+    min-height: 74px;
+}
+
+.layout-medium .metric-value {
+    font-size: 19px;
+    margin-top: 5px;
+}
+
+.layout-narrow {
+    padding: 10px;
+    font-size: 12px;
+}
+
+.layout-narrow .top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 10px;
+}
+
+.layout-narrow .app-title {
+    font-size: 18px;
+    margin-right: 0;
+    margin-bottom: 6px;
+}
+
+.layout-narrow .status-pill {
+    max-width: none;
+}
+
+.layout-narrow .workspace {
+    flex-direction: column;
+}
+
+.layout-narrow .left-column {
+    margin-right: 0;
+}
+
+.layout-narrow .right-rail {
+    width: auto;
+    margin-top: 10px;
+}
+
+.layout-narrow .viewport-panel {
+    min-height: 230px;
+    flex-grow: 0;
+    padding: 12px;
+}
+
+.layout-narrow .metric-row {
+    flex-direction: column;
+    margin-top: 10px;
+}
+
+.layout-narrow .metric-card {
+    min-height: 62px;
+    margin-right: 0;
+    margin-bottom: 8px;
+    padding: 10px;
+}
+
+.layout-narrow .last-metric-card {
+    margin-bottom: 0;
+}
+
+.layout-narrow .panel {
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.layout-narrow .panel-title {
+    font-size: 14px;
+}
+
+.layout-narrow .metric-value {
+    font-size: 18px;
+    margin-top: 4px;
+}
+
+.layout-narrow Button {
+    min-height: 34px;
+    font-size: 11px;
+}
