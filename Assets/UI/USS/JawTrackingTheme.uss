@@ -258,6 +258,16 @@ Button:hover {
     border-color: #20a8ba;
 }
 
+.secondary-button {
+    background-color: #1d3a43;
+    border-color: #3c6875;
+    color: #dff8fb;
+}
+
+.secondary-button:hover {
+    background-color: #25505c;
+}
+
 .metric-row {
     flex-direction: row;
     margin-top: 12px;

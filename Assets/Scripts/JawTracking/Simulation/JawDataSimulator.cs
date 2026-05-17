@@ -27,6 +27,7 @@ namespace JawTracking.Simulation
         public event Action<JawMotionState> MotionUpdated;
 
         public bool IsRunning { get; private set; }
+        public bool IsMotionPaused { get; private set; }
 
         public float OpeningAngleScale => openingAngleScale;
 
@@ -38,6 +39,11 @@ namespace JawTracking.Simulation
         public void SetOpeningAngleScale(float value)
         {
             openingAngleScale = Mathf.Clamp(value, 0.05f, 2f);
+        }
+
+        public void SetMotionPaused(bool paused)
+        {
+            IsMotionPaused = paused;
         }
 
         public void Toggle()
@@ -60,6 +66,7 @@ namespace JawTracking.Simulation
             elapsedSeconds = 0f;
             frameId = 0;
             IsRunning = true;
+            IsMotionPaused = false;
         }
 
         public void Stop()
@@ -70,6 +77,7 @@ namespace JawTracking.Simulation
         public void StopAndReturnToRest()
         {
             IsRunning = false;
+            IsMotionPaused = false;
             elapsedSeconds = 0f;
             var restState = new JawMotionState(0f, 0f, 0f, 0f, 0f, 1f, true, frameId, CurrentTimestampMs());
             modelController?.ForceRestPoseImmediate();
@@ -86,6 +94,11 @@ namespace JawTracking.Simulation
         private void Update()
         {
             if (!IsRunning)
+            {
+                return;
+            }
+
+            if (IsMotionPaused)
             {
                 return;
             }

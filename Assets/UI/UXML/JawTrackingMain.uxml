@@ -59,6 +59,8 @@
                     <ui:VisualElement name="connection-section-body" class="accordion-body">
                     <ui:Button name="start-udp-button" text="UDP Başlat" />
                     <ui:Button name="simulation-button" text="Simülasyon Modu" />
+                    <ui:Button name="pause-motion-button" text="Hareketi Durdur" class="secondary-button" />
+                    <ui:Label name="motion-pause-label" text="Hareket: devam ediyor" class="metric-line" />
                     <ui:Label name="packet-rate-label" text="Paket hızı: -- FPS" class="metric-line" />
                     <ui:Label name="tracking-label" text="Takip: bekleniyor" class="metric-line" />
                     </ui:VisualElement>

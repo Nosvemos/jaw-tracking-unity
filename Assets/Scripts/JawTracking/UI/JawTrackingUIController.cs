@@ -2,6 +2,7 @@ using System.IO;
 using JawTracking.Data;
 using JawTracking.FileAccess;
 using JawTracking.Motion;
+using JawTracking.Network;
 using JawTracking.Simulation;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -15,6 +16,7 @@ namespace JawTracking.UI
         private const float MediumWidth = 1080f;
         private const int MinViewportTextureSize = 256;
         private const int MaxViewportTextureSize = 2048;
+        private const float LiveMetricUiIntervalSeconds = 0.05f;
         private static readonly Vector3 DefaultPivotBoundsAnchor = new Vector3(0f, 0.72f, -0.58f);
         private const float DefaultPivotLiftMm = 0f;
         private const float DefaultOpeningAngleScale = 0.82f;
@@ -22,7 +24,12 @@ namespace JawTracking.UI
         [SerializeField] private JawModelImportService modelImportService;
         [SerializeField] private JawModelController modelController;
         [SerializeField] private JawDataSimulator simulator;
+        [SerializeField] private UdpJawMotionSource udpMotionSource;
         [SerializeField] private Camera viewportCamera;
+
+        [Header("Network Settings")]
+        [SerializeField] private string udpListenAddress = "0.0.0.0";
+        [SerializeField, Range(1, 65535)] private int udpListenPort = 5055;
 
         private VisualElement appRoot;
         private VisualElement viewportPanel;
@@ -37,6 +44,8 @@ namespace JawTracking.UI
         private Label protrusionValueLabel;
         private Label confidenceValueLabel;
         private Label trackingLabel;
+        private Label packetRateLabel;
+        private Label motionPauseLabel;
         private Label pivotYValueLabel;
         private Label pivotZValueLabel;
         private Label pivotXValueLabel;
@@ -64,12 +73,15 @@ namespace JawTracking.UI
         private RenderTexture viewportRenderTexture;
         private int currentViewportTextureWidth;
         private int currentViewportTextureHeight;
+        private float nextLiveMetricUiUpdateTime;
+        private bool isMotionPaused;
         private Camera displayFallbackCamera;
 
         private Button loadUpperButton;
         private Button loadLowerButton;
         private Button startUdpButton;
         private Button simulationButton;
+        private Button pauseMotionButton;
         private Button calibrateButton;
         private Button resetCalibrationButton;
 
@@ -89,6 +101,7 @@ namespace JawTracking.UI
             BindMotionControls();
             BindImportService();
             BindSimulator();
+            BindUdpMotionSource();
             SetupViewportRenderTarget();
             ScheduleRuntimeScrollbarTheme();
 
@@ -121,6 +134,13 @@ namespace JawTracking.UI
             {
                 simulator.MotionUpdated -= HandleSimulationMotionUpdated;
             }
+
+            if (udpMotionSource != null)
+            {
+                udpMotionSource.MotionUpdated -= HandleUdpMotionUpdated;
+                udpMotionSource.StatusChanged -= HandleStatusChanged;
+                udpMotionSource.StatsUpdated -= HandleUdpStatsUpdated;
+            }
         }
 
         private void BindElements()
@@ -145,6 +165,8 @@ namespace JawTracking.UI
             protrusionValueLabel = documentRoot.Q<Label>("protrusion-value");
             confidenceValueLabel = documentRoot.Q<Label>("confidence-value");
             trackingLabel = documentRoot.Q<Label>("tracking-label");
+            packetRateLabel = documentRoot.Q<Label>("packet-rate-label");
+            motionPauseLabel = documentRoot.Q<Label>("motion-pause-label");
             pivotYValueLabel = documentRoot.Q<Label>("pivot-y-value");
             pivotZValueLabel = documentRoot.Q<Label>("pivot-z-value");
             pivotXValueLabel = documentRoot.Q<Label>("pivot-x-value");
@@ -159,6 +181,7 @@ namespace JawTracking.UI
             loadLowerButton = documentRoot.Q<Button>("load-lower-button");
             startUdpButton = documentRoot.Q<Button>("start-udp-button");
             simulationButton = documentRoot.Q<Button>("simulation-button");
+            pauseMotionButton = documentRoot.Q<Button>("pause-motion-button");
             calibrateButton = documentRoot.Q<Button>("calibrate-button");
             resetCalibrationButton = documentRoot.Q<Button>("reset-calibration-button");
             modelSectionToggle = documentRoot.Q<VisualElement>("model-section-toggle");
@@ -194,12 +217,17 @@ namespace JawTracking.UI
 
             if (startUdpButton != null)
             {
-                startUdpButton.clicked += ShowUdpPlaceholder;
+                startUdpButton.clicked += ToggleUdp;
             }
 
             if (simulationButton != null)
             {
                 simulationButton.clicked += ToggleSimulation;
+            }
+
+            if (pauseMotionButton != null)
+            {
+                pauseMotionButton.clicked += ToggleMotionPause;
             }
 
             if (calibrateButton != null)
@@ -370,12 +398,17 @@ namespace JawTracking.UI
 
             if (startUdpButton != null)
             {
-                startUdpButton.clicked -= ShowUdpPlaceholder;
+                startUdpButton.clicked -= ToggleUdp;
             }
 
             if (simulationButton != null)
             {
                 simulationButton.clicked -= ToggleSimulation;
+            }
+
+            if (pauseMotionButton != null)
+            {
+                pauseMotionButton.clicked -= ToggleMotionPause;
             }
 
             if (calibrateButton != null)
@@ -422,7 +455,38 @@ namespace JawTracking.UI
 
             simulator.MotionUpdated -= HandleSimulationMotionUpdated;
             simulator.MotionUpdated += HandleSimulationMotionUpdated;
+            simulator.SetMotionPaused(isMotionPaused);
             SyncMotionControlValues();
+        }
+
+        private void BindUdpMotionSource()
+        {
+            if (udpMotionSource == null)
+            {
+                udpMotionSource = FindFirstObjectByType<UdpJawMotionSource>();
+            }
+
+            if (udpMotionSource == null)
+            {
+                var udpObject = new GameObject("JawUdpRuntime");
+                udpMotionSource = udpObject.AddComponent<UdpJawMotionSource>();
+            }
+
+            if (modelController != null)
+            {
+                udpMotionSource.SetModelController(modelController);
+            }
+
+            udpMotionSource.ConfigureNetwork(udpListenAddress, udpListenPort);
+            udpMotionSource.MotionUpdated -= HandleUdpMotionUpdated;
+            udpMotionSource.StatusChanged -= HandleStatusChanged;
+            udpMotionSource.StatsUpdated -= HandleUdpStatsUpdated;
+            udpMotionSource.MotionUpdated += HandleUdpMotionUpdated;
+            udpMotionSource.StatusChanged += HandleStatusChanged;
+            udpMotionSource.StatsUpdated += HandleUdpStatsUpdated;
+            udpMotionSource.SetMotionPaused(isMotionPaused);
+            UpdateUdpButtonText();
+            UpdateMotionPauseText();
         }
 
         private void LoadUpperJaw()
@@ -435,16 +499,45 @@ namespace JawTracking.UI
             modelImportService?.LoadLowerJawFromPicker();
         }
 
-        private void ShowUdpPlaceholder()
+        private void ToggleUdp()
         {
-            SetStatus("UDP entegrasyonu sonraki aşamada bağlanacak.");
+            BindUdpMotionSource();
+
+            if (!udpMotionSource.IsReceiving)
+            {
+                ReturnSimulationToRest();
+            }
+
+            udpMotionSource.ToggleReceiving();
+            udpMotionSource.SetMotionPaused(isMotionPaused);
+            UpdateUdpButtonText();
+            UpdateMotionPauseText();
+
+            if (udpMotionSource.IsReceiving)
+            {
+                SetTrackingText("Takip: UDP bekleniyor");
+                SetPacketRate(0f);
+            }
+            else
+            {
+                SetTrackingText("Takip: bekleniyor");
+                SetPacketRate(0f);
+            }
         }
 
         private void ToggleSimulation()
         {
             BindSimulator();
+            if (udpMotionSource != null && udpMotionSource.IsReceiving)
+            {
+                udpMotionSource.StopReceiving();
+                UpdateUdpButtonText();
+            }
+
             simulator.Toggle();
+            simulator.SetMotionPaused(isMotionPaused && simulator.IsRunning);
             UpdateSimulationButtonText();
+            UpdateMotionPauseText();
 
             if (simulator.IsRunning)
             {
@@ -456,6 +549,33 @@ namespace JawTracking.UI
                 SetStatus("Simülasyon modu durduruldu.");
                 SetTrackingText("Takip: bekleniyor");
             }
+        }
+
+        private void ToggleMotionPause()
+        {
+            isMotionPaused = !isMotionPaused;
+            ApplyMotionPauseState();
+
+            if (isMotionPaused)
+            {
+                SetStatus("Hareket durduruldu.");
+                SetTrackingText("Takip: hareket duraklatıldı");
+            }
+            else
+            {
+                SetStatus("Hareket devam ediyor.");
+                SetTrackingText(CurrentTrackingTextAfterResume());
+            }
+        }
+
+        private void ApplyMotionPauseState()
+        {
+            BindSimulator();
+            BindUdpMotionSource();
+
+            simulator?.SetMotionPaused(isMotionPaused && simulator.IsRunning);
+            udpMotionSource?.SetMotionPaused(isMotionPaused && udpMotionSource.IsReceiving);
+            UpdateMotionPauseText();
         }
 
         private void ShowCalibrationPlaceholder()
@@ -506,7 +626,11 @@ namespace JawTracking.UI
         {
             if (statusLabel != null)
             {
-                statusLabel.text = string.IsNullOrWhiteSpace(message) ? "Hazır" : message;
+                string nextText = string.IsNullOrWhiteSpace(message) ? "Hazır" : message;
+                if (statusLabel.text != nextText)
+                {
+                    statusLabel.text = nextText;
+                }
             }
         }
 
@@ -514,8 +638,53 @@ namespace JawTracking.UI
         {
             if (trackingLabel != null)
             {
-                trackingLabel.text = message;
+                if (trackingLabel.text != message)
+                {
+                    trackingLabel.text = message;
+                }
             }
+        }
+
+        private void SetPacketRate(float packetsPerSecond)
+        {
+            if (packetRateLabel != null)
+            {
+                string nextText = $"Paket hızı: {packetsPerSecond:0.0} FPS";
+                if (packetRateLabel.text != nextText)
+                {
+                    packetRateLabel.text = nextText;
+                }
+            }
+        }
+
+        private void UpdateMotionPauseText()
+        {
+            if (pauseMotionButton != null)
+            {
+                pauseMotionButton.text = isMotionPaused ? "Harekete Devam Et" : "Hareketi Durdur";
+            }
+
+            if (motionPauseLabel != null)
+            {
+                SetLabelTextIfChanged(
+                    motionPauseLabel,
+                    isMotionPaused ? "Hareket: duraklatıldı" : "Hareket: devam ediyor");
+            }
+        }
+
+        private string CurrentTrackingTextAfterResume()
+        {
+            if (simulator != null && simulator.IsRunning)
+            {
+                return "Takip: simülasyon";
+            }
+
+            if (udpMotionSource != null && udpMotionSource.IsReceiving)
+            {
+                return "Takip: UDP bekleniyor";
+            }
+
+            return "Takip: bekleniyor";
         }
 
         private void HandleModelSectionClicked(ClickEvent evt)
@@ -753,24 +922,55 @@ namespace JawTracking.UI
 
         private void HandleSimulationMotionUpdated(JawMotionState state)
         {
+            UpdateMetricValues(state);
+        }
+
+        private void HandleUdpMotionUpdated(JawMotionState state)
+        {
+            if (Time.unscaledTime >= nextLiveMetricUiUpdateTime || !state.TrackingValid)
+            {
+                nextLiveMetricUiUpdateTime = Time.unscaledTime + LiveMetricUiIntervalSeconds;
+                UpdateMetricValues(state);
+            }
+
+            SetTrackingText(state.TrackingValid ? "Takip: geçerli" : "Takip: geçersiz");
+        }
+
+        private void HandleUdpStatsUpdated(float packetRate, bool trackingFresh)
+        {
+            SetPacketRate(packetRate);
+            if (isMotionPaused)
+            {
+                SetTrackingText("Takip: hareket duraklatıldı");
+                return;
+            }
+
+            if (udpMotionSource != null && udpMotionSource.IsReceiving && !trackingFresh)
+            {
+                SetTrackingText("Takip: veri bekleniyor");
+            }
+        }
+
+        private void UpdateMetricValues(JawMotionState state)
+        {
             if (openingValueLabel != null)
             {
-                openingValueLabel.text = $"{state.OpeningMm:0.0} mm";
+                SetLabelTextIfChanged(openingValueLabel, $"{state.OpeningMm:0.0} mm");
             }
 
             if (lateralValueLabel != null)
             {
-                lateralValueLabel.text = $"{state.LateralMm:0.0} mm";
+                SetLabelTextIfChanged(lateralValueLabel, $"{state.LateralMm:0.0} mm");
             }
 
             if (protrusionValueLabel != null)
             {
-                protrusionValueLabel.text = $"{state.ProtrusionMm:0.0} mm";
+                SetLabelTextIfChanged(protrusionValueLabel, $"{state.ProtrusionMm:0.0} mm");
             }
 
             if (confidenceValueLabel != null)
             {
-                confidenceValueLabel.text = $"{state.Confidence * 100f:0} %";
+                SetLabelTextIfChanged(confidenceValueLabel, $"{state.Confidence * 100f:0} %");
             }
         }
 
@@ -778,22 +978,30 @@ namespace JawTracking.UI
         {
             if (openingValueLabel != null)
             {
-                openingValueLabel.text = "0.0 mm";
+                SetLabelTextIfChanged(openingValueLabel, "0.0 mm");
             }
 
             if (lateralValueLabel != null)
             {
-                lateralValueLabel.text = "0.0 mm";
+                SetLabelTextIfChanged(lateralValueLabel, "0.0 mm");
             }
 
             if (protrusionValueLabel != null)
             {
-                protrusionValueLabel.text = "0.0 mm";
+                SetLabelTextIfChanged(protrusionValueLabel, "0.0 mm");
             }
 
             if (confidenceValueLabel != null)
             {
-                confidenceValueLabel.text = "-- %";
+                SetLabelTextIfChanged(confidenceValueLabel, "-- %");
+            }
+        }
+
+        private static void SetLabelTextIfChanged(Label label, string text)
+        {
+            if (label != null && label.text != text)
+            {
+                label.text = text;
             }
         }
 
@@ -804,6 +1012,16 @@ namespace JawTracking.UI
                 simulationButton.text = simulator != null && simulator.IsRunning
                     ? "Simülasyonu Durdur"
                     : "Simülasyon Modu";
+            }
+        }
+
+        private void UpdateUdpButtonText()
+        {
+            if (startUdpButton != null)
+            {
+                startUdpButton.text = udpMotionSource != null && udpMotionSource.IsReceiving
+                    ? "UDP Durdur"
+                    : "UDP Başlat";
             }
         }
 
@@ -1111,6 +1329,8 @@ namespace JawTracking.UI
             VisualElement connectionPanel = CreatePanel("Bağlantı");
             connectionPanel.Add(CreateButton("start-udp-button", "UDP Başlat"));
             connectionPanel.Add(CreateButton("simulation-button", "Simülasyon Modu"));
+            connectionPanel.Add(CreateButton("pause-motion-button", "Hareketi Durdur"));
+            connectionPanel.Add(CreateMetricLine("motion-pause-label", "Hareket: devam ediyor"));
             connectionPanel.Add(CreateMetricLine("packet-rate-label", "Paket hızı: -- FPS"));
             connectionPanel.Add(CreateMetricLine("tracking-label", "Takip: bekleniyor"));
             rightRail.Add(connectionPanel);

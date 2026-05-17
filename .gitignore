@@ -109,3 +109,6 @@ InitTestScene*.unity*
 # Local project planning docs. Keep the public docs index trackable.
 /docs/*
 !/docs/README.md
+
+# Local UDP backend simulator for manual Unity testing.
+/test-server/
