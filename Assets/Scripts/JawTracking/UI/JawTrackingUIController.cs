@@ -1,5 +1,8 @@
 using System.IO;
+using JawTracking.Data;
 using JawTracking.FileAccess;
+using JawTracking.Motion;
+using JawTracking.Simulation;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -12,17 +15,52 @@ namespace JawTracking.UI
         private const float MediumWidth = 1080f;
         private const int MinViewportTextureSize = 256;
         private const int MaxViewportTextureSize = 2048;
+        private static readonly Vector3 DefaultPivotBoundsAnchor = new Vector3(0f, 0.72f, -0.58f);
+        private const float DefaultPivotLiftMm = 0f;
+        private const float DefaultOpeningAngleScale = 0.82f;
 
         [SerializeField] private JawModelImportService modelImportService;
+        [SerializeField] private JawModelController modelController;
+        [SerializeField] private JawDataSimulator simulator;
         [SerializeField] private Camera viewportCamera;
 
         private VisualElement appRoot;
         private VisualElement viewportPanel;
         private Image viewportImage;
+        private ScrollView rightRailScroll;
         private Label statusLabel;
         private Label viewportEmptyHintLabel;
         private Label upperFileLabel;
         private Label lowerFileLabel;
+        private Label openingValueLabel;
+        private Label lateralValueLabel;
+        private Label protrusionValueLabel;
+        private Label confidenceValueLabel;
+        private Label trackingLabel;
+        private Label pivotYValueLabel;
+        private Label pivotZValueLabel;
+        private Label pivotXValueLabel;
+        private Label pivotLiftValueLabel;
+        private Label openingScaleValueLabel;
+        private VisualElement modelSectionBody;
+        private VisualElement connectionSectionBody;
+        private VisualElement calibrationSectionBody;
+        private VisualElement motionSectionBody;
+        private VisualElement modelSectionToggle;
+        private VisualElement connectionSectionToggle;
+        private VisualElement calibrationSectionToggle;
+        private VisualElement motionSectionToggle;
+        private Label modelSectionIcon;
+        private Label connectionSectionIcon;
+        private Label calibrationSectionIcon;
+        private Label motionSectionIcon;
+        private Button resetPivotButton;
+        private Button invertOpeningButton;
+        private Slider pivotYSlider;
+        private Slider pivotZSlider;
+        private Slider pivotXSlider;
+        private Slider pivotLiftSlider;
+        private Slider openingScaleSlider;
         private RenderTexture viewportRenderTexture;
         private int currentViewportTextureWidth;
         private int currentViewportTextureHeight;
@@ -45,9 +83,14 @@ namespace JawTracking.UI
         {
             BuildFallbackUiIfNeeded();
             BindElements();
+            BindModelController();
             BindButtons();
+            BindAccordionButtons();
+            BindMotionControls();
             BindImportService();
+            BindSimulator();
             SetupViewportRenderTarget();
+            ScheduleRuntimeScrollbarTheme();
 
             if (appRoot != null)
             {
@@ -64,12 +107,19 @@ namespace JawTracking.UI
             }
 
             UnbindButtons();
+            UnbindAccordionButtons();
+            UnbindMotionControls();
             ReleaseViewportRenderTarget();
 
             if (modelImportService != null)
             {
                 modelImportService.StatusChanged -= HandleStatusChanged;
                 modelImportService.ModelImportCompleted -= HandleModelImportCompleted;
+            }
+
+            if (simulator != null)
+            {
+                simulator.MotionUpdated -= HandleSimulationMotionUpdated;
             }
         }
 
@@ -79,11 +129,31 @@ namespace JawTracking.UI
             appRoot = documentRoot.Q<VisualElement>("app-root") ?? documentRoot;
             viewportPanel = documentRoot.Q<VisualElement>("viewport-panel");
             viewportImage = documentRoot.Q<Image>("viewport-render");
+            rightRailScroll = documentRoot.Q<ScrollView>("right-rail-scroll");
+            if (rightRailScroll != null)
+            {
+                rightRailScroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+                rightRailScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            }
 
             statusLabel = documentRoot.Q<Label>("connection-status");
             viewportEmptyHintLabel = documentRoot.Q<Label>("viewport-empty-hint");
             upperFileLabel = documentRoot.Q<Label>("upper-file-label");
             lowerFileLabel = documentRoot.Q<Label>("lower-file-label");
+            openingValueLabel = documentRoot.Q<Label>("opening-value");
+            lateralValueLabel = documentRoot.Q<Label>("lateral-value");
+            protrusionValueLabel = documentRoot.Q<Label>("protrusion-value");
+            confidenceValueLabel = documentRoot.Q<Label>("confidence-value");
+            trackingLabel = documentRoot.Q<Label>("tracking-label");
+            pivotYValueLabel = documentRoot.Q<Label>("pivot-y-value");
+            pivotZValueLabel = documentRoot.Q<Label>("pivot-z-value");
+            pivotXValueLabel = documentRoot.Q<Label>("pivot-x-value");
+            pivotLiftValueLabel = documentRoot.Q<Label>("pivot-lift-value");
+            openingScaleValueLabel = documentRoot.Q<Label>("opening-scale-value");
+            modelSectionBody = documentRoot.Q<VisualElement>("model-section-body");
+            connectionSectionBody = documentRoot.Q<VisualElement>("connection-section-body");
+            calibrationSectionBody = documentRoot.Q<VisualElement>("calibration-section-body");
+            motionSectionBody = documentRoot.Q<VisualElement>("motion-section-body");
 
             loadUpperButton = documentRoot.Q<Button>("load-upper-button");
             loadLowerButton = documentRoot.Q<Button>("load-lower-button");
@@ -91,6 +161,21 @@ namespace JawTracking.UI
             simulationButton = documentRoot.Q<Button>("simulation-button");
             calibrateButton = documentRoot.Q<Button>("calibrate-button");
             resetCalibrationButton = documentRoot.Q<Button>("reset-calibration-button");
+            modelSectionToggle = documentRoot.Q<VisualElement>("model-section-toggle");
+            connectionSectionToggle = documentRoot.Q<VisualElement>("connection-section-toggle");
+            calibrationSectionToggle = documentRoot.Q<VisualElement>("calibration-section-toggle");
+            motionSectionToggle = documentRoot.Q<VisualElement>("motion-section-toggle");
+            modelSectionIcon = documentRoot.Q<Label>("model-section-icon");
+            connectionSectionIcon = documentRoot.Q<Label>("connection-section-icon");
+            calibrationSectionIcon = documentRoot.Q<Label>("calibration-section-icon");
+            motionSectionIcon = documentRoot.Q<Label>("motion-section-icon");
+            resetPivotButton = documentRoot.Q<Button>("reset-pivot-button");
+            invertOpeningButton = documentRoot.Q<Button>("invert-opening-button");
+            pivotYSlider = documentRoot.Q<Slider>("pivot-y-slider");
+            pivotZSlider = documentRoot.Q<Slider>("pivot-z-slider");
+            pivotXSlider = documentRoot.Q<Slider>("pivot-x-slider");
+            pivotLiftSlider = documentRoot.Q<Slider>("pivot-lift-slider");
+            openingScaleSlider = documentRoot.Q<Slider>("opening-scale-slider");
         }
 
         private void BindButtons()
@@ -114,7 +199,7 @@ namespace JawTracking.UI
 
             if (simulationButton != null)
             {
-                simulationButton.clicked += ShowSimulationPlaceholder;
+                simulationButton.clicked += ToggleSimulation;
             }
 
             if (calibrateButton != null)
@@ -125,6 +210,149 @@ namespace JawTracking.UI
             if (resetCalibrationButton != null)
             {
                 resetCalibrationButton.clicked += ShowResetCalibrationPlaceholder;
+            }
+        }
+
+        private void BindAccordionButtons()
+        {
+            UnbindAccordionButtons();
+
+            if (modelSectionToggle != null)
+            {
+                modelSectionToggle.RegisterCallback<ClickEvent>(HandleModelSectionClicked);
+            }
+
+            if (connectionSectionToggle != null)
+            {
+                connectionSectionToggle.RegisterCallback<ClickEvent>(HandleConnectionSectionClicked);
+            }
+
+            if (calibrationSectionToggle != null)
+            {
+                calibrationSectionToggle.RegisterCallback<ClickEvent>(HandleCalibrationSectionClicked);
+            }
+
+            if (motionSectionToggle != null)
+            {
+                motionSectionToggle.RegisterCallback<ClickEvent>(HandleMotionSectionClicked);
+            }
+
+            RefreshAccordionIcons();
+        }
+
+        private void UnbindAccordionButtons()
+        {
+            if (modelSectionToggle != null)
+            {
+                modelSectionToggle.UnregisterCallback<ClickEvent>(HandleModelSectionClicked);
+            }
+
+            if (connectionSectionToggle != null)
+            {
+                connectionSectionToggle.UnregisterCallback<ClickEvent>(HandleConnectionSectionClicked);
+            }
+
+            if (calibrationSectionToggle != null)
+            {
+                calibrationSectionToggle.UnregisterCallback<ClickEvent>(HandleCalibrationSectionClicked);
+            }
+
+            if (motionSectionToggle != null)
+            {
+                motionSectionToggle.UnregisterCallback<ClickEvent>(HandleMotionSectionClicked);
+            }
+        }
+
+        private void BindMotionControls()
+        {
+            UnbindMotionControls();
+
+            if (pivotYSlider != null)
+            {
+                pivotYSlider.RegisterValueChangedCallback(HandlePivotYChanged);
+            }
+
+            if (pivotZSlider != null)
+            {
+                pivotZSlider.RegisterValueChangedCallback(HandlePivotZChanged);
+            }
+
+            if (pivotXSlider != null)
+            {
+                pivotXSlider.RegisterValueChangedCallback(HandlePivotXChanged);
+            }
+
+            if (pivotLiftSlider != null)
+            {
+                pivotLiftSlider.RegisterValueChangedCallback(HandlePivotLiftChanged);
+            }
+
+            if (openingScaleSlider != null)
+            {
+                openingScaleSlider.RegisterValueChangedCallback(HandleOpeningScaleChanged);
+            }
+
+            if (resetPivotButton != null)
+            {
+                resetPivotButton.clicked += RecalculatePivot;
+            }
+
+            if (invertOpeningButton != null)
+            {
+                invertOpeningButton.clicked += InvertOpeningDirection;
+            }
+
+            SyncMotionControlValues();
+        }
+
+        private void UnbindMotionControls()
+        {
+            if (pivotYSlider != null)
+            {
+                pivotYSlider.UnregisterValueChangedCallback(HandlePivotYChanged);
+            }
+
+            if (pivotZSlider != null)
+            {
+                pivotZSlider.UnregisterValueChangedCallback(HandlePivotZChanged);
+            }
+
+            if (pivotXSlider != null)
+            {
+                pivotXSlider.UnregisterValueChangedCallback(HandlePivotXChanged);
+            }
+
+            if (pivotLiftSlider != null)
+            {
+                pivotLiftSlider.UnregisterValueChangedCallback(HandlePivotLiftChanged);
+            }
+
+            if (openingScaleSlider != null)
+            {
+                openingScaleSlider.UnregisterValueChangedCallback(HandleOpeningScaleChanged);
+            }
+
+            if (resetPivotButton != null)
+            {
+                resetPivotButton.clicked -= RecalculatePivot;
+            }
+
+            if (invertOpeningButton != null)
+            {
+                invertOpeningButton.clicked -= InvertOpeningDirection;
+            }
+        }
+
+        private void BindModelController()
+        {
+            if (modelController == null)
+            {
+                modelController = FindFirstObjectByType<JawModelController>();
+            }
+
+            if (modelController == null)
+            {
+                modelController = gameObject.AddComponent<JawModelController>();
             }
         }
 
@@ -147,7 +375,7 @@ namespace JawTracking.UI
 
             if (simulationButton != null)
             {
-                simulationButton.clicked -= ShowSimulationPlaceholder;
+                simulationButton.clicked -= ToggleSimulation;
             }
 
             if (calibrateButton != null)
@@ -174,6 +402,29 @@ namespace JawTracking.UI
             modelImportService.ModelImportCompleted += HandleModelImportCompleted;
         }
 
+        private void BindSimulator()
+        {
+            if (simulator == null)
+            {
+                simulator = FindFirstObjectByType<JawDataSimulator>();
+            }
+
+            if (simulator == null)
+            {
+                var simulatorObject = new GameObject("JawSimulationRuntime");
+                simulator = simulatorObject.AddComponent<JawDataSimulator>();
+            }
+
+            if (modelController != null)
+            {
+                simulator.SetModelController(modelController);
+            }
+
+            simulator.MotionUpdated -= HandleSimulationMotionUpdated;
+            simulator.MotionUpdated += HandleSimulationMotionUpdated;
+            SyncMotionControlValues();
+        }
+
         private void LoadUpperJaw()
         {
             modelImportService?.LoadUpperJawFromPicker();
@@ -189,19 +440,38 @@ namespace JawTracking.UI
             SetStatus("UDP entegrasyonu sonraki aşamada bağlanacak.");
         }
 
-        private void ShowSimulationPlaceholder()
+        private void ToggleSimulation()
         {
-            SetStatus("Simülasyon modu sonraki aşamada bağlanacak.");
+            BindSimulator();
+            simulator.Toggle();
+            UpdateSimulationButtonText();
+
+            if (simulator.IsRunning)
+            {
+                SetStatus("Simülasyon modu çalışıyor.");
+                SetTrackingText("Takip: simülasyon");
+            }
+            else
+            {
+                SetStatus("Simülasyon modu durduruldu.");
+                SetTrackingText("Takip: bekleniyor");
+            }
         }
 
         private void ShowCalibrationPlaceholder()
         {
-            SetStatus("Kalibrasyon sistemi sonraki aşamada bağlanacak.");
+            ReturnSimulationToRest();
+            simulator?.RefreshRestPose();
+            ResetMetricValues();
+            SetStatus("Dinlenme pozisyonu kalibre edildi.");
         }
 
         private void ShowResetCalibrationPlaceholder()
         {
-            SetStatus("Kalibrasyon sıfırlama sonraki aşamada bağlanacak.");
+            ReturnSimulationToRest();
+            simulator?.RefreshRestPose();
+            ResetMetricValues();
+            SetStatus("Kalibrasyon sıfırlandı.");
         }
 
         private void HandleStatusChanged(string message)
@@ -228,6 +498,8 @@ namespace JawTracking.UI
             }
 
             HideViewportEmptyHint();
+            ReturnSimulationToRest();
+            simulator?.RefreshRestPose();
         }
 
         private void SetStatus(string message)
@@ -238,9 +510,307 @@ namespace JawTracking.UI
             }
         }
 
+        private void SetTrackingText(string message)
+        {
+            if (trackingLabel != null)
+            {
+                trackingLabel.text = message;
+            }
+        }
+
+        private void HandleModelSectionClicked(ClickEvent evt)
+        {
+            ToggleSection(modelSectionBody);
+        }
+
+        private void HandleConnectionSectionClicked(ClickEvent evt)
+        {
+            ToggleSection(connectionSectionBody);
+        }
+
+        private void HandleCalibrationSectionClicked(ClickEvent evt)
+        {
+            ToggleSection(calibrationSectionBody);
+        }
+
+        private void HandleMotionSectionClicked(ClickEvent evt)
+        {
+            ToggleSection(motionSectionBody);
+        }
+
+        private void ToggleSection(VisualElement sectionBody)
+        {
+            if (sectionBody == null)
+            {
+                return;
+            }
+
+            if (sectionBody.ClassListContains("collapsed"))
+            {
+                sectionBody.RemoveFromClassList("collapsed");
+            }
+            else
+            {
+                sectionBody.AddToClassList("collapsed");
+            }
+
+            RefreshAccordionIcons();
+        }
+
+        private void RefreshAccordionIcons()
+        {
+            SetAccordionIcon(modelSectionBody, modelSectionIcon);
+            SetAccordionIcon(connectionSectionBody, connectionSectionIcon);
+            SetAccordionIcon(calibrationSectionBody, calibrationSectionIcon);
+            SetAccordionIcon(motionSectionBody, motionSectionIcon);
+        }
+
+        private static void SetAccordionIcon(VisualElement sectionBody, Label icon)
+        {
+            if (sectionBody == null || icon == null)
+            {
+                return;
+            }
+
+            icon.text = sectionBody.ClassListContains("collapsed") ? "+" : "-";
+        }
+
+        private void HandlePivotYChanged(ChangeEvent<float> evt)
+        {
+            ReturnSimulationToRest();
+            Vector3 anchor = CurrentPivotAnchor();
+            anchor.y = evt.newValue;
+            ApplyPivotAnchor(anchor);
+        }
+
+        private void HandlePivotZChanged(ChangeEvent<float> evt)
+        {
+            ReturnSimulationToRest();
+            Vector3 anchor = CurrentPivotAnchor();
+            anchor.z = evt.newValue;
+            ApplyPivotAnchor(anchor);
+        }
+
+        private void HandlePivotXChanged(ChangeEvent<float> evt)
+        {
+            ReturnSimulationToRest();
+            Vector3 anchor = CurrentPivotAnchor();
+            anchor.x = evt.newValue;
+            ApplyPivotAnchor(anchor);
+        }
+
+        private void HandlePivotLiftChanged(ChangeEvent<float> evt)
+        {
+            ReturnSimulationToRest();
+            BindModelController();
+            Vector3 offset = modelController != null ? modelController.ManualPivotWorldOffset : Vector3.zero;
+            offset.y = evt.newValue * 0.001f;
+            modelController?.SetManualPivotWorldOffset(offset);
+            UpdateMotionValueLabels();
+        }
+
+        private void HandleOpeningScaleChanged(ChangeEvent<float> evt)
+        {
+            ReturnSimulationToRest();
+            simulator?.SetOpeningAngleScale(evt.newValue);
+            UpdateMotionValueLabels();
+        }
+
+        private void RecalculatePivot()
+        {
+            ReturnSimulationToRest();
+            BindModelController();
+            ApplyDefaultPivotControls();
+            SetStatus("Pivot varsayılan değerlerle yeniden hesaplandı.");
+            UpdateMotionValueLabels();
+        }
+
+        private void InvertOpeningDirection()
+        {
+            ReturnSimulationToRest();
+            BindModelController();
+            modelController?.ToggleOpeningDirection();
+            modelController?.ForceRestPoseImmediate();
+            SetStatus("Açılma yönü ters çevrildi.");
+        }
+
+        private Vector3 CurrentPivotAnchor()
+        {
+            BindModelController();
+            return modelController != null ? modelController.PivotBoundsAnchor : DefaultPivotBoundsAnchor;
+        }
+
+        private void ApplyPivotAnchor(Vector3 anchor)
+        {
+            BindModelController();
+            modelController?.SetPivotBoundsAnchor(anchor);
+            modelController?.ForceRestPoseImmediate();
+            UpdateMotionValueLabels();
+        }
+
+        private void ReturnSimulationToRest()
+        {
+            BindSimulator();
+            simulator?.StopAndReturnToRest();
+            UpdateSimulationButtonText();
+            SetTrackingText("Takip: bekleniyor");
+            ResetMetricValues();
+        }
+
+        private void SyncMotionControlValues()
+        {
+            BindModelController();
+
+            Vector3 anchor = CurrentPivotAnchor();
+            if (pivotYSlider != null)
+            {
+                pivotYSlider.SetValueWithoutNotify(anchor.y);
+            }
+
+            if (pivotZSlider != null)
+            {
+                pivotZSlider.SetValueWithoutNotify(anchor.z);
+            }
+
+            if (pivotXSlider != null)
+            {
+                pivotXSlider.SetValueWithoutNotify(anchor.x);
+            }
+
+            if (pivotLiftSlider != null && modelController != null)
+            {
+                pivotLiftSlider.SetValueWithoutNotify(modelController.ManualPivotWorldOffset.y * 1000f);
+            }
+
+            if (openingScaleSlider != null && simulator != null)
+            {
+                openingScaleSlider.SetValueWithoutNotify(simulator.OpeningAngleScale);
+            }
+
+            UpdateMotionValueLabels();
+        }
+
+        private void ApplyDefaultPivotControls()
+        {
+            if (pivotXSlider != null)
+            {
+                pivotXSlider.SetValueWithoutNotify(DefaultPivotBoundsAnchor.x);
+            }
+
+            if (pivotYSlider != null)
+            {
+                pivotYSlider.SetValueWithoutNotify(DefaultPivotBoundsAnchor.y);
+            }
+
+            if (pivotZSlider != null)
+            {
+                pivotZSlider.SetValueWithoutNotify(DefaultPivotBoundsAnchor.z);
+            }
+
+            if (pivotLiftSlider != null)
+            {
+                pivotLiftSlider.SetValueWithoutNotify(DefaultPivotLiftMm);
+            }
+
+            if (openingScaleSlider != null)
+            {
+                openingScaleSlider.SetValueWithoutNotify(DefaultOpeningAngleScale);
+            }
+
+            modelController?.SetManualPivotWorldOffset(Vector3.zero);
+            modelController?.SetPivotBoundsAnchor(DefaultPivotBoundsAnchor);
+            modelController?.ForceRestPoseImmediate();
+            simulator?.SetOpeningAngleScale(DefaultOpeningAngleScale);
+        }
+
+        private void UpdateMotionValueLabels()
+        {
+            if (pivotYValueLabel != null && pivotYSlider != null)
+            {
+                pivotYValueLabel.text = $"Pivot yükseklik: {pivotYSlider.value:0.00}";
+            }
+
+            if (pivotZValueLabel != null && pivotZSlider != null)
+            {
+                pivotZValueLabel.text = $"Pivot arka/ön: {pivotZSlider.value:0.00}";
+            }
+
+            if (pivotXValueLabel != null && pivotXSlider != null)
+            {
+                pivotXValueLabel.text = $"Pivot sağ/sol: {pivotXSlider.value:0.00}";
+            }
+
+            if (pivotLiftValueLabel != null && pivotLiftSlider != null)
+            {
+                pivotLiftValueLabel.text = $"Pivot yukarı offset: {pivotLiftSlider.value:0} mm";
+            }
+
+            if (openingScaleValueLabel != null && openingScaleSlider != null)
+            {
+                openingScaleValueLabel.text = $"Açılma etkisi: {openingScaleSlider.value:0.00}";
+            }
+        }
+
+        private void HandleSimulationMotionUpdated(JawMotionState state)
+        {
+            if (openingValueLabel != null)
+            {
+                openingValueLabel.text = $"{state.OpeningMm:0.0} mm";
+            }
+
+            if (lateralValueLabel != null)
+            {
+                lateralValueLabel.text = $"{state.LateralMm:0.0} mm";
+            }
+
+            if (protrusionValueLabel != null)
+            {
+                protrusionValueLabel.text = $"{state.ProtrusionMm:0.0} mm";
+            }
+
+            if (confidenceValueLabel != null)
+            {
+                confidenceValueLabel.text = $"{state.Confidence * 100f:0} %";
+            }
+        }
+
+        private void ResetMetricValues()
+        {
+            if (openingValueLabel != null)
+            {
+                openingValueLabel.text = "0.0 mm";
+            }
+
+            if (lateralValueLabel != null)
+            {
+                lateralValueLabel.text = "0.0 mm";
+            }
+
+            if (protrusionValueLabel != null)
+            {
+                protrusionValueLabel.text = "0.0 mm";
+            }
+
+            if (confidenceValueLabel != null)
+            {
+                confidenceValueLabel.text = "-- %";
+            }
+        }
+
+        private void UpdateSimulationButtonText()
+        {
+            if (simulationButton != null)
+            {
+                simulationButton.text = simulator != null && simulator.IsRunning
+                    ? "Simülasyonu Durdur"
+                    : "Simülasyon Modu";
+            }
+        }
+
         private void HandleGeometryChanged(GeometryChangedEvent evt)
         {
             ApplyResponsiveClass(evt.newRect.width);
+            HideRuntimeScrollbars();
         }
 
         private void ApplyResponsiveClass(float width)
@@ -291,6 +861,7 @@ namespace JawTracking.UI
 
             if (viewportCamera != null)
             {
+                DisableAudioListener(viewportCamera);
                 viewportCamera.clearFlags = CameraClearFlags.SolidColor;
                 viewportCamera.backgroundColor = new Color(0.047f, 0.065f, 0.082f, 1f);
                 viewportCamera.nearClipPlane = 0.003f;
@@ -298,6 +869,61 @@ namespace JawTracking.UI
             }
 
             ResizeViewportRenderTarget();
+        }
+
+        private void ScheduleRuntimeScrollbarTheme()
+        {
+            appRoot?.schedule.Execute(HideRuntimeScrollbars).ExecuteLater(100);
+        }
+
+        private void HideRuntimeScrollbars()
+        {
+            if (appRoot == null)
+            {
+                return;
+            }
+
+            VisualElement scrollRoot = rightRailScroll ?? appRoot;
+            VisualElement verticalScroller = scrollRoot.Q<VisualElement>(className: "unity-scroll-view__vertical-scroller");
+            if (verticalScroller == null)
+            {
+                verticalScroller = scrollRoot.Q<VisualElement>(className: "unity-scroller--vertical");
+            }
+
+            if (verticalScroller == null)
+            {
+                return;
+            }
+
+            HideScrollerElement(verticalScroller);
+
+            verticalScroller.Query<VisualElement>(className: "unity-scroller__low-button")
+                .ForEach(HideScrollerButton);
+            verticalScroller.Query<VisualElement>(className: "unity-scroller__high-button")
+                .ForEach(HideScrollerButton);
+            verticalScroller.Query<VisualElement>(className: "unity-scroller__slider")
+                .ForEach(HideScrollerElement);
+            verticalScroller.Query<VisualElement>(className: "unity-base-slider__tracker")
+                .ForEach(HideScrollerElement);
+            verticalScroller.Query<VisualElement>(className: "unity-base-slider__dragger")
+                .ForEach(HideScrollerElement);
+        }
+
+        private static void HideScrollerButton(VisualElement element)
+        {
+            element.style.display = DisplayStyle.None;
+            element.style.width = 0;
+            element.style.height = 0;
+        }
+
+        private static void HideScrollerElement(VisualElement element)
+        {
+            element.style.display = DisplayStyle.None;
+            element.style.width = 0;
+            element.style.minWidth = 0;
+            element.style.maxWidth = 0;
+            element.style.marginLeft = 0;
+            element.style.marginRight = 0;
         }
 
         private void ResizeViewportRenderTarget()
@@ -353,9 +979,24 @@ namespace JawTracking.UI
                 displayFallbackCamera.depth = -100f;
                 displayFallbackCamera.nearClipPlane = 0.01f;
                 displayFallbackCamera.farClipPlane = 1f;
+                DisableAudioListener(displayFallbackCamera);
             }
 
             displayFallbackCamera.enabled = true;
+        }
+
+        private static void DisableAudioListener(Camera camera)
+        {
+            if (camera == null)
+            {
+                return;
+            }
+
+            AudioListener listener = camera.GetComponent<AudioListener>();
+            if (listener != null)
+            {
+                listener.enabled = false;
+            }
         }
 
         private static bool CameraRendersToDisplay()

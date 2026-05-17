@@ -37,28 +37,67 @@
             </ui:VisualElement>
 
             <ui:VisualElement name="right-rail" class="right-rail">
-                <ui:VisualElement class="panel">
-                    <ui:Label text="Model Yükleme" class="panel-title" />
+                <ui:ScrollView name="right-rail-scroll" class="right-rail-scroll" mode="Vertical">
+                <ui:VisualElement class="panel accordion-panel">
+                    <ui:VisualElement name="model-section-toggle" class="accordion-header">
+                        <ui:Label text="Model Yükleme" class="accordion-title" />
+                        <ui:Label name="model-section-icon" text="-" class="accordion-icon" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="model-section-body" class="accordion-body">
                     <ui:Button name="load-upper-button" text="Üst Çene STL Yükle" class="primary-button" />
                     <ui:Button name="load-lower-button" text="Alt Çene STL Yükle" class="primary-button" />
                     <ui:Label name="upper-file-label" text="Üst çene: yüklenmedi" class="muted-text file-label" />
                     <ui:Label name="lower-file-label" text="Alt çene: yüklenmedi" class="muted-text file-label" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
-                <ui:VisualElement class="panel">
-                    <ui:Label text="Bağlantı" class="panel-title" />
+                <ui:VisualElement class="panel accordion-panel">
+                    <ui:VisualElement name="connection-section-toggle" class="accordion-header">
+                        <ui:Label text="Bağlantı" class="accordion-title" />
+                        <ui:Label name="connection-section-icon" text="-" class="accordion-icon" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="connection-section-body" class="accordion-body">
                     <ui:Button name="start-udp-button" text="UDP Başlat" />
                     <ui:Button name="simulation-button" text="Simülasyon Modu" />
                     <ui:Label name="packet-rate-label" text="Paket hızı: -- FPS" class="metric-line" />
                     <ui:Label name="tracking-label" text="Takip: bekleniyor" class="metric-line" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
-                <ui:VisualElement class="panel last-panel">
-                    <ui:Label text="Kalibrasyon" class="panel-title" />
+                <ui:VisualElement class="panel accordion-panel">
+                    <ui:VisualElement name="calibration-section-toggle" class="accordion-header">
+                        <ui:Label text="Kalibrasyon" class="accordion-title" />
+                        <ui:Label name="calibration-section-icon" text="-" class="accordion-icon" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="calibration-section-body" class="accordion-body">
                     <ui:Button name="calibrate-button" text="Dinlenme Pozisyonunu Kalibre Et" />
                     <ui:Button name="reset-calibration-button" text="Kalibrasyonu Sıfırla" />
                     <ui:Label name="calibration-label" text="Durum: kalibre edilmedi" class="metric-line" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
+
+                <ui:VisualElement class="panel accordion-panel last-panel">
+                    <ui:VisualElement name="motion-section-toggle" class="accordion-header">
+                        <ui:Label text="Hareket Ayarları" class="accordion-title" />
+                        <ui:Label name="motion-section-icon" text="+" class="accordion-icon" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="motion-section-body" class="accordion-body collapsed">
+                        <ui:Label text="Pivot konumunu model yüklüyken canlı ayarlayın." class="muted-text file-label" />
+                        <ui:Label name="pivot-y-value" text="Pivot yükseklik: 0.72" class="metric-line" />
+                        <ui:Slider name="pivot-y-slider" low-value="0.2" high-value="1.2" value="0.72" class="control-slider" />
+                        <ui:Label name="pivot-z-value" text="Pivot arka/ön: -0.58" class="metric-line" />
+                        <ui:Slider name="pivot-z-slider" low-value="-1.2" high-value="1.2" value="-0.58" class="control-slider" />
+                        <ui:Label name="pivot-x-value" text="Pivot sağ/sol: 0.00" class="metric-line" />
+                        <ui:Slider name="pivot-x-slider" low-value="-0.8" high-value="0.8" value="0" class="control-slider" />
+                        <ui:Label name="pivot-lift-value" text="Pivot yukarı offset: 0 mm" class="metric-line" />
+                        <ui:Slider name="pivot-lift-slider" low-value="-40" high-value="40" value="0" class="control-slider" />
+                        <ui:Label name="opening-scale-value" text="Açılma etkisi: 0.82" class="metric-line" />
+                        <ui:Slider name="opening-scale-slider" low-value="0.2" high-value="1.2" value="0.82" class="control-slider" />
+                        <ui:Button name="invert-opening-button" text="Açılma Yönünü Ters Çevir" />
+                        <ui:Button name="reset-pivot-button" text="Pivotu Yeniden Hesapla" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                </ui:ScrollView>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

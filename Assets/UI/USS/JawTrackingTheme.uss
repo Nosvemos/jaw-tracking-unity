@@ -53,6 +53,63 @@
     min-height: 0;
 }
 
+.right-rail-scroll {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.right-rail-scroll .unity-scroll-view__content-viewport {
+    background-color: transparent;
+}
+
+.right-rail-scroll .unity-scroll-view__content-container {
+    padding-right: 0;
+}
+
+.right-rail-scroll .unity-scroll-view__vertical-scroller,
+.right-rail-scroll .unity-scroller--vertical {
+    display: none;
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.right-rail-scroll .unity-scroll-view__vertical-scroller .unity-scroller__low-button,
+.right-rail-scroll .unity-scroll-view__vertical-scroller .unity-scroller__high-button {
+    height: 0;
+    width: 0;
+    display: none;
+}
+
+.right-rail-scroll .unity-scroll-view__vertical-scroller .unity-scroller__slider {
+    background-color: #0e171d;
+    border-color: #1f333c;
+    border-radius: 4px;
+    min-width: 7px;
+}
+
+.right-rail-scroll .unity-scroll-view__vertical-scroller .unity-base-slider__tracker {
+    background-color: #0e171d;
+    border-color: #1f333c;
+    border-radius: 4px;
+}
+
+.right-rail-scroll .unity-scroll-view__vertical-scroller .unity-base-slider__dragger {
+    background-color: #177f8e;
+    border-color: #35b5c5;
+    border-radius: 4px;
+    width: 5px;
+    min-width: 5px;
+    margin-left: 1px;
+    margin-right: 1px;
+}
+
+.right-rail-scroll .unity-scroll-view__vertical-scroller .unity-base-slider__dragger:hover {
+    background-color: #23a6b8;
+}
+
 .viewport-panel {
     flex-grow: 1;
     height: 0;
@@ -100,6 +157,56 @@
     border-radius: 6px;
     padding: 13px 14px;
     margin-bottom: 10px;
+}
+
+.accordion-panel {
+    padding: 0;
+    overflow: hidden;
+}
+
+.accordion-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    margin-top: 0;
+    background-color: #172129;
+    color: #ffffff;
+    padding-left: 14px;
+    padding-right: 12px;
+}
+
+.accordion-header:hover {
+    background-color: #20303a;
+}
+
+.accordion-title {
+    flex-grow: 1;
+    color: #ffffff;
+    -unity-font-style: bold;
+    font-size: 16px;
+    white-space: normal;
+}
+
+.accordion-icon {
+    width: 24px;
+    color: #9de8f2;
+    -unity-font-style: bold;
+    font-size: 20px;
+    -unity-text-align: middle-right;
+}
+
+.accordion-body {
+    padding: 0 14px 13px 14px;
+}
+
+.collapsed {
+    display: none;
+}
+
+.control-slider {
+    margin-top: 2px;
+    margin-bottom: 6px;
 }
 
 .last-panel {
@@ -265,6 +372,10 @@ Button:hover {
 .layout-narrow .right-rail {
     width: auto;
     margin-top: 10px;
+}
+
+.layout-narrow .right-rail-scroll {
+    max-height: 360px;
 }
 
 .layout-narrow .viewport-panel {
