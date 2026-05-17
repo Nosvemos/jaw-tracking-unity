@@ -9,9 +9,10 @@
         <ui:VisualElement name="workspace" class="workspace">
             <ui:VisualElement name="left-column" class="left-column">
                 <ui:VisualElement name="viewport-panel" class="viewport-panel">
+                    <ui:Image name="viewport-render" class="viewport-render" picking-mode="Ignore" />
                     <ui:VisualElement class="viewport-header">
                         <ui:Label text="3B Çene Görünümü" class="panel-title" />
-                        <ui:Label text="STL modeller yüklendiğinde çene görünümü burada hareket edecek." class="muted-text" />
+                        <ui:Label name="viewport-empty-hint" text="STL modeller yüklendiğinde çene görünümü burada hareket edecek." class="muted-text" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

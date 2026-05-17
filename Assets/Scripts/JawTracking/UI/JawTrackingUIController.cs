@@ -10,13 +10,23 @@ namespace JawTracking.UI
     {
         private const float NarrowWidth = 760f;
         private const float MediumWidth = 1080f;
+        private const int MinViewportTextureSize = 256;
+        private const int MaxViewportTextureSize = 2048;
 
         [SerializeField] private JawModelImportService modelImportService;
+        [SerializeField] private Camera viewportCamera;
 
         private VisualElement appRoot;
+        private VisualElement viewportPanel;
+        private Image viewportImage;
         private Label statusLabel;
+        private Label viewportEmptyHintLabel;
         private Label upperFileLabel;
         private Label lowerFileLabel;
+        private RenderTexture viewportRenderTexture;
+        private int currentViewportTextureWidth;
+        private int currentViewportTextureHeight;
+        private Camera displayFallbackCamera;
 
         private Button loadUpperButton;
         private Button loadLowerButton;
@@ -37,6 +47,7 @@ namespace JawTracking.UI
             BindElements();
             BindButtons();
             BindImportService();
+            SetupViewportRenderTarget();
 
             if (appRoot != null)
             {
@@ -53,6 +64,7 @@ namespace JawTracking.UI
             }
 
             UnbindButtons();
+            ReleaseViewportRenderTarget();
 
             if (modelImportService != null)
             {
@@ -65,8 +77,11 @@ namespace JawTracking.UI
         {
             VisualElement documentRoot = GetComponent<UIDocument>().rootVisualElement;
             appRoot = documentRoot.Q<VisualElement>("app-root") ?? documentRoot;
+            viewportPanel = documentRoot.Q<VisualElement>("viewport-panel");
+            viewportImage = documentRoot.Q<Image>("viewport-render");
 
             statusLabel = documentRoot.Q<Label>("connection-status");
+            viewportEmptyHintLabel = documentRoot.Q<Label>("viewport-empty-hint");
             upperFileLabel = documentRoot.Q<Label>("upper-file-label");
             lowerFileLabel = documentRoot.Q<Label>("lower-file-label");
 
@@ -211,6 +226,8 @@ namespace JawTracking.UI
             {
                 lowerFileLabel.text = $"Alt çene: {fileName}";
             }
+
+            HideViewportEmptyHint();
         }
 
         private void SetStatus(string message)
@@ -249,6 +266,133 @@ namespace JawTracking.UI
             {
                 appRoot.AddToClassList("layout-wide");
             }
+
+            ResizeViewportRenderTarget();
+        }
+
+        private void SetupViewportRenderTarget()
+        {
+            if (viewportPanel == null)
+            {
+                return;
+            }
+
+            if (viewportImage == null)
+            {
+                viewportImage = new Image { name = "viewport-render", pickingMode = PickingMode.Ignore };
+                viewportImage.AddToClassList("viewport-render");
+                viewportPanel.Insert(0, viewportImage);
+            }
+
+            if (viewportCamera == null)
+            {
+                viewportCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
+            }
+
+            if (viewportCamera != null)
+            {
+                viewportCamera.clearFlags = CameraClearFlags.SolidColor;
+                viewportCamera.backgroundColor = new Color(0.047f, 0.065f, 0.082f, 1f);
+                viewportCamera.nearClipPlane = 0.003f;
+                viewportCamera.farClipPlane = 10f;
+            }
+
+            ResizeViewportRenderTarget();
+        }
+
+        private void ResizeViewportRenderTarget()
+        {
+            if (viewportCamera == null || viewportImage == null || viewportPanel == null)
+            {
+                return;
+            }
+
+            int width = Mathf.Clamp(Mathf.CeilToInt(viewportPanel.resolvedStyle.width), MinViewportTextureSize, MaxViewportTextureSize);
+            int height = Mathf.Clamp(Mathf.CeilToInt(viewportPanel.resolvedStyle.height), MinViewportTextureSize, MaxViewportTextureSize);
+
+            if (viewportRenderTexture != null &&
+                currentViewportTextureWidth == width &&
+                currentViewportTextureHeight == height)
+            {
+                return;
+            }
+
+            ReleaseViewportRenderTarget();
+
+            viewportRenderTexture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32)
+            {
+                name = "Jaw Viewport Render Texture",
+                antiAliasing = 2,
+                useMipMap = false,
+                autoGenerateMips = false
+            };
+
+            viewportRenderTexture.Create();
+            viewportCamera.targetTexture = viewportRenderTexture;
+            viewportImage.image = viewportRenderTexture;
+            EnsureDisplayFallbackCamera();
+            currentViewportTextureWidth = width;
+            currentViewportTextureHeight = height;
+        }
+
+        private void EnsureDisplayFallbackCamera()
+        {
+            if (CameraRendersToDisplay())
+            {
+                return;
+            }
+
+            if (displayFallbackCamera == null)
+            {
+                var cameraObject = new GameObject("Display Fallback Camera");
+                cameraObject.transform.SetParent(transform, false);
+                displayFallbackCamera = cameraObject.AddComponent<Camera>();
+                displayFallbackCamera.clearFlags = CameraClearFlags.SolidColor;
+                displayFallbackCamera.backgroundColor = new Color(0.062f, 0.078f, 0.098f, 1f);
+                displayFallbackCamera.cullingMask = 0;
+                displayFallbackCamera.depth = -100f;
+                displayFallbackCamera.nearClipPlane = 0.01f;
+                displayFallbackCamera.farClipPlane = 1f;
+            }
+
+            displayFallbackCamera.enabled = true;
+        }
+
+        private static bool CameraRendersToDisplay()
+        {
+            Camera[] cameras = FindObjectsByType<Camera>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (Camera camera in cameras)
+            {
+                if (camera.enabled && camera.targetTexture == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void ReleaseViewportRenderTarget()
+        {
+            if (viewportCamera != null && viewportCamera.targetTexture == viewportRenderTexture)
+            {
+                viewportCamera.targetTexture = null;
+            }
+
+            if (viewportImage != null && viewportImage.image == viewportRenderTexture)
+            {
+                viewportImage.image = null;
+            }
+
+            if (viewportRenderTexture != null)
+            {
+                viewportRenderTexture.Release();
+                Destroy(viewportRenderTexture);
+                viewportRenderTexture = null;
+            }
+
+            currentViewportTextureWidth = 0;
+            currentViewportTextureHeight = 0;
         }
 
         private void BuildFallbackUiIfNeeded()
@@ -286,8 +430,16 @@ namespace JawTracking.UI
 
             var viewport = new VisualElement { name = "viewport-panel" };
             viewport.AddToClassList("viewport-panel");
-            viewport.Add(CreateTitle("3B Çene Görünümü"));
-            viewport.Add(CreateMutedLabel("Üst ve alt çene STL dosyalarını yükleyerek başlayın."));
+            viewportImage = new Image { name = "viewport-render", pickingMode = PickingMode.Ignore };
+            viewportImage.AddToClassList("viewport-render");
+            viewport.Add(viewportImage);
+            var viewportHeader = new VisualElement();
+            viewportHeader.AddToClassList("viewport-header");
+            viewportHeader.Add(CreateTitle("3B Çene Görünümü"));
+            viewportEmptyHintLabel = CreateMutedLabel("STL modeller yüklendiğinde çene görünümü burada hareket edecek.");
+            viewportEmptyHintLabel.name = "viewport-empty-hint";
+            viewportHeader.Add(viewportEmptyHintLabel);
+            viewport.Add(viewportHeader);
             leftColumn.Add(viewport);
 
             var metricRow = new VisualElement { name = "primary-metrics" };
@@ -378,6 +530,14 @@ namespace JawTracking.UI
         private static Button CreateButton(string name, string text)
         {
             return new Button { name = name, text = text };
+        }
+
+        private void HideViewportEmptyHint()
+        {
+            if (viewportEmptyHintLabel != null)
+            {
+                viewportEmptyHintLabel.style.display = DisplayStyle.None;
+            }
         }
     }
 }
