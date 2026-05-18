@@ -14,7 +14,19 @@ namespace JawTracking
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureScene()
         {
+            ForceMobileLandscapeOrientation();
             RepairExistingUiDocuments();
+        }
+
+        private static void ForceMobileLandscapeOrientation()
+        {
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.LandscapeLeft;
+#endif
         }
 
         private static void RepairExistingUiDocuments()

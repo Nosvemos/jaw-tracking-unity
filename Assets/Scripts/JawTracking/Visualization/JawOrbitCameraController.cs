@@ -40,10 +40,20 @@ namespace JawTracking.Visualization
         [SerializeField] private float farClipDistanceFactor = 24f;
         [SerializeField] private float minimumFarClipPlane = 10f;
 
+        private Rect inputScreenRect;
+        private bool hasInputScreenRect;
+        private bool mouseOrbitActive;
+        private bool mousePanActive;
         private Vector2 previousPrimaryTouch;
         private Vector2 previousSecondaryTouch;
         private bool hadTwoTouches;
         private Camera controlledCamera;
+
+        public void SetInputScreenRect(Rect screenRect)
+        {
+            inputScreenRect = screenRect;
+            hasInputScreenRect = screenRect.width > 1f && screenRect.height > 1f;
+        }
 
         public void SetTarget(Transform newTarget)
         {
@@ -53,10 +63,21 @@ namespace JawTracking.Visualization
         public void FrameBounds(Bounds bounds)
         {
             targetOffset = bounds.center;
-            float maxSize = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
-            if (maxSize > Mathf.Epsilon)
+            float radius = bounds.extents.magnitude;
+            if (radius > Mathf.Epsilon)
             {
-                distance = Mathf.Clamp(maxSize * 2.4f, minDistance, maxDistance);
+                if (controlledCamera == null)
+                {
+                    controlledCamera = GetComponent<Camera>();
+                }
+
+                float verticalFov = controlledCamera != null ? controlledCamera.fieldOfView : 60f;
+                float aspect = controlledCamera != null ? Mathf.Max(controlledCamera.aspect, 0.1f) : 1f;
+                float verticalDistance = radius / Mathf.Sin(verticalFov * 0.5f * Mathf.Deg2Rad);
+                float horizontalFov = 2f * Mathf.Atan(Mathf.Tan(verticalFov * 0.5f * Mathf.Deg2Rad) * aspect);
+                float horizontalDistance = radius / Mathf.Sin(Mathf.Max(horizontalFov, 0.1f) * 0.5f);
+                float fitDistance = Mathf.Max(verticalDistance, horizontalDistance) * 1.18f;
+                distance = Mathf.Clamp(fitDistance, minDistance, maxDistance);
             }
         }
 
@@ -80,23 +101,45 @@ namespace JawTracking.Visualization
                 return;
             }
 
+            Vector2 mousePosition = mouse.position.ReadValue();
+            bool pointerInViewport = IsPointerInInputRect(mousePosition);
             Vector2 delta = mouse.delta.ReadValue();
 
-            if (mouse.rightButton.isPressed)
+            if (mouse.rightButton.wasPressedThisFrame)
+            {
+                mouseOrbitActive = pointerInViewport;
+            }
+
+            if (mouse.rightButton.wasReleasedThisFrame)
+            {
+                mouseOrbitActive = false;
+            }
+
+            if (mouse.middleButton.wasPressedThisFrame)
+            {
+                mousePanActive = pointerInViewport;
+            }
+
+            if (mouse.middleButton.wasReleasedThisFrame)
+            {
+                mousePanActive = false;
+            }
+
+            if (mouse.rightButton.isPressed && mouseOrbitActive)
             {
                 yaw += delta.x * mouseOrbitSensitivity;
                 pitch -= delta.y * mouseOrbitSensitivity;
                 pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
             }
 
-            if (mouse.middleButton.isPressed)
+            if (mouse.middleButton.isPressed && mousePanActive)
             {
                 Vector3 pan = (-transform.right * delta.x - transform.up * delta.y) * mousePanSensitivity * distance;
                 targetOffset += pan;
             }
 
             float scroll = mouse.scroll.ReadValue().y;
-            if (Mathf.Abs(scroll) > Mathf.Epsilon)
+            if (Mathf.Abs(scroll) > Mathf.Epsilon && pointerInViewport)
             {
                 float wheelSteps = scroll / 120f;
                 float multiplier = Mathf.Pow(zoomStepMultiplier, wheelSteps * mouseZoomSensitivity);
@@ -118,6 +161,12 @@ namespace JawTracking.Visualization
 
             if (firstTouch != null && secondTouch == null)
             {
+                if (!IsPointerInInputRect(firstTouch.position.ReadValue()))
+                {
+                    hadTwoTouches = false;
+                    return;
+                }
+
                 Vector2 delta = firstTouch.delta.ReadValue();
                 yaw += delta.x * touchOrbitSensitivity;
                 pitch -= delta.y * touchOrbitSensitivity;
@@ -130,6 +179,11 @@ namespace JawTracking.Visualization
             {
                 Vector2 firstPosition = firstTouch.position.ReadValue();
                 Vector2 secondPosition = secondTouch.position.ReadValue();
+                if (!IsPointerInInputRect(firstPosition) || !IsPointerInInputRect(secondPosition))
+                {
+                    hadTwoTouches = false;
+                    return;
+                }
 
                 if (hadTwoTouches)
                 {
@@ -172,6 +226,11 @@ namespace JawTracking.Visualization
             }
 
             return null;
+        }
+
+        private bool IsPointerInInputRect(Vector2 screenPosition)
+        {
+            return !hasInputScreenRect || inputScreenRect.Contains(screenPosition);
         }
 
         private void ApplyCameraTransform()

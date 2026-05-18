@@ -4,6 +4,7 @@ using JawTracking.FileAccess;
 using JawTracking.Motion;
 using JawTracking.Network;
 using JawTracking.Simulation;
+using JawTracking.Visualization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -26,6 +27,7 @@ namespace JawTracking.UI
         [SerializeField] private JawDataSimulator simulator;
         [SerializeField] private UdpJawMotionSource udpMotionSource;
         [SerializeField] private Camera viewportCamera;
+        [SerializeField] private JawOrbitCameraController orbitCameraController;
 
         [Header("Network Settings")]
         [SerializeField] private string udpListenAddress = "0.0.0.0";
@@ -1029,6 +1031,7 @@ namespace JawTracking.UI
         {
             ApplyResponsiveClass(evt.newRect.width);
             HideRuntimeScrollbars();
+            UpdateViewportInputBounds();
         }
 
         private void ApplyResponsiveClass(float width)
@@ -1055,7 +1058,26 @@ namespace JawTracking.UI
                 appRoot.AddToClassList("layout-wide");
             }
 
+            ApplyViewportSizing(width);
             ResizeViewportRenderTarget();
+        }
+
+        private void ApplyViewportSizing(float width)
+        {
+            if (viewportPanel == null || width <= 0f)
+            {
+                return;
+            }
+
+            if (width < NarrowWidth)
+            {
+                float mobileViewportHeight = Mathf.Clamp(Screen.height * 0.44f, 320f, 560f);
+                viewportPanel.style.minHeight = mobileViewportHeight;
+            }
+            else
+            {
+                viewportPanel.style.minHeight = StyleKeyword.Null;
+            }
         }
 
         private void SetupViewportRenderTarget()
@@ -1080,6 +1102,11 @@ namespace JawTracking.UI
             if (viewportCamera != null)
             {
                 DisableAudioListener(viewportCamera);
+                if (orbitCameraController == null)
+                {
+                    orbitCameraController = viewportCamera.GetComponent<JawOrbitCameraController>();
+                }
+
                 viewportCamera.clearFlags = CameraClearFlags.SolidColor;
                 viewportCamera.backgroundColor = new Color(0.047f, 0.065f, 0.082f, 1f);
                 viewportCamera.nearClipPlane = 0.003f;
@@ -1087,6 +1114,7 @@ namespace JawTracking.UI
             }
 
             ResizeViewportRenderTarget();
+            UpdateViewportInputBounds();
         }
 
         private void ScheduleRuntimeScrollbarTheme()
@@ -1173,10 +1201,59 @@ namespace JawTracking.UI
 
             viewportRenderTexture.Create();
             viewportCamera.targetTexture = viewportRenderTexture;
+            viewportCamera.aspect = width / (float)height;
             viewportImage.image = viewportRenderTexture;
             EnsureDisplayFallbackCamera();
             currentViewportTextureWidth = width;
             currentViewportTextureHeight = height;
+            UpdateViewportInputBounds();
+            ReframeImportedModelIfPossible();
+        }
+
+        private void UpdateViewportInputBounds()
+        {
+            if (viewportPanel == null)
+            {
+                return;
+            }
+
+            if (orbitCameraController == null && viewportCamera != null)
+            {
+                orbitCameraController = viewportCamera.GetComponent<JawOrbitCameraController>();
+            }
+
+            if (orbitCameraController == null)
+            {
+                orbitCameraController = FindFirstObjectByType<JawOrbitCameraController>();
+            }
+
+            if (orbitCameraController == null)
+            {
+                return;
+            }
+
+            Rect worldBound = viewportPanel.worldBound;
+            if (worldBound.width <= 1f || worldBound.height <= 1f)
+            {
+                return;
+            }
+
+            var screenRect = new Rect(
+                worldBound.xMin,
+                Screen.height - worldBound.yMax,
+                worldBound.width,
+                worldBound.height);
+            orbitCameraController.SetInputScreenRect(screenRect);
+        }
+
+        private void ReframeImportedModelIfPossible()
+        {
+            if (orbitCameraController == null || modelImportService == null || !modelImportService.CombinedBounds.HasValue)
+            {
+                return;
+            }
+
+            orbitCameraController.FrameBounds(modelImportService.CombinedBounds.Value);
         }
 
         private void EnsureDisplayFallbackCamera()
