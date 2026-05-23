@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -39,6 +40,8 @@ namespace JawTracking.Visualization
         [SerializeField] private float nearClipDistanceFactor = 0.02f;
         [SerializeField] private float farClipDistanceFactor = 24f;
         [SerializeField] private float minimumFarClipPlane = 10f;
+
+        public Func<Vector2, bool> PointerInViewportChecker;
 
         private Rect inputScreenRect;
         private bool hasInputScreenRect;
@@ -161,7 +164,7 @@ namespace JawTracking.Visualization
 
             if (firstTouch != null && secondTouch == null)
             {
-                if (!IsPointerInInputRect(firstTouch.position.ReadValue()))
+                if (!IsPointerInInputRect(firstTouch.startPosition.ReadValue()))
                 {
                     hadTwoTouches = false;
                     return;
@@ -177,13 +180,15 @@ namespace JawTracking.Visualization
 
             if (firstTouch != null && secondTouch != null)
             {
-                Vector2 firstPosition = firstTouch.position.ReadValue();
-                Vector2 secondPosition = secondTouch.position.ReadValue();
-                if (!IsPointerInInputRect(firstPosition) || !IsPointerInInputRect(secondPosition))
+                if (!IsPointerInInputRect(firstTouch.startPosition.ReadValue()) || 
+                    !IsPointerInInputRect(secondTouch.startPosition.ReadValue()))
                 {
                     hadTwoTouches = false;
                     return;
                 }
+
+                Vector2 firstPosition = firstTouch.position.ReadValue();
+                Vector2 secondPosition = secondTouch.position.ReadValue();
 
                 if (hadTwoTouches)
                 {
@@ -230,6 +235,10 @@ namespace JawTracking.Visualization
 
         private bool IsPointerInInputRect(Vector2 screenPosition)
         {
+            if (PointerInViewportChecker != null)
+            {
+                return PointerInViewportChecker(screenPosition);
+            }
             return !hasInputScreenRect || inputScreenRect.Contains(screenPosition);
         }
 

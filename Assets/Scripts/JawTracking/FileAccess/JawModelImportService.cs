@@ -73,6 +73,26 @@ namespace JawTracking.FileAccess
             _ = LoadFromPickerAsync(JawModelRole.LowerJaw);
         }
 
+        public void ClearModels()
+        {
+            AutoWireSceneReferences();
+            if (upperJawMeshFilter != null)
+            {
+                upperJawMeshFilter.sharedMesh = null;
+            }
+
+            if (lowerJawMeshFilter != null)
+            {
+                lowerJawMeshFilter.sharedMesh = null;
+            }
+
+            UpperJawPath = string.Empty;
+            LowerJawPath = string.Empty;
+            CombinedBounds = null;
+            
+            StatusChanged?.Invoke("Modeller temizlendi.");
+        }
+
         public async Task LoadFromPickerAsync(JawModelRole role)
         {
             StatusChanged?.Invoke(role == JawModelRole.UpperJaw

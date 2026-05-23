@@ -34,11 +34,20 @@ namespace JawTracking.Network
         [SerializeField] private float maxProtrusionMm = 20f;
         [SerializeField] private float maxOpeningAngle = 40f;
 
+        [Header("Calibration")]
+        [SerializeField] private int calibrationFrameCount = 30;
+
         private readonly UdpJawReceiver receiver = new UdpJawReceiver();
         private float lastValidFrameRealtime;
         private float nextStatsUpdateRealtime;
         private string lastParserError = string.Empty;
         private int droppedParseErrors;
+
+        // Calibration state
+        private Vector3[] recentRawPositions;
+        private int recentPosIndex = 0;
+        private int recentPosCount = 0;
+        private Vector3 currentCalibrationOffset = Vector3.zero;
 
         public event Action<JawMotionState> MotionUpdated;
         public event Action<string> StatusChanged;
@@ -59,6 +68,11 @@ namespace JawTracking.Network
 
             listenAddress = string.IsNullOrWhiteSpace(address) ? "0.0.0.0" : address.Trim();
             listenPort = Mathf.Clamp(port, 1, 65535);
+        }
+
+        private void Awake()
+        {
+            recentRawPositions = new Vector3[calibrationFrameCount];
         }
 
         public void SetModelController(JawModelController controller)
@@ -108,6 +122,30 @@ namespace JawTracking.Network
             modelController?.ForceRestPoseImmediate();
             StatusChanged?.Invoke("UDP durduruldu.");
             StatsUpdated?.Invoke(0f, false);
+        }
+
+        public void CalibrateRestPosition()
+        {
+            if (recentPosCount == 0)
+            {
+                StatusChanged?.Invoke("Kalibrasyon başarısız: Yeterli veri yok.");
+                return;
+            }
+
+            Vector3 sum = Vector3.zero;
+            for (int i = 0; i < recentPosCount; i++)
+            {
+                sum += recentRawPositions[i];
+            }
+
+            currentCalibrationOffset = sum / recentPosCount;
+            StatusChanged?.Invoke("Dinlenme pozisyonu UDP verisine göre kalibre edildi.");
+        }
+
+        public void ResetCalibration()
+        {
+            currentCalibrationOffset = Vector3.zero;
+            StatusChanged?.Invoke("UDP kalibrasyonu sıfırlandı.");
         }
 
         private void Update()
@@ -166,22 +204,35 @@ namespace JawTracking.Network
 
         private JawMotionState MapFrame(JawFrame frame)
         {
-            float xMm = 0f;
-            float yMm = 0f;
-            float zMm = 0f;
+            float rawXMm = 0f;
+            float rawYMm = 0f;
+            float rawZMm = 0f;
 
             if (useMillimeterPoseIfAvailable && frame.HasPose())
             {
-                xMm = frame.pose.x_mm;
-                yMm = frame.pose.y_mm;
-                zMm = frame.pose.z_mm;
+                rawXMm = frame.pose.x_mm;
+                rawYMm = frame.pose.y_mm;
+                rawZMm = frame.pose.z_mm;
             }
             else if (frame.HasRelative())
             {
-                xMm = frame.relative.dx_px * mmPerPixelX;
-                yMm = frame.relative.dy_px * mmPerPixelY;
-                zMm = frame.relative.dz_px * mmPerPixelZ;
+                rawXMm = frame.relative.dx_px * mmPerPixelX;
+                rawYMm = frame.relative.dy_px * mmPerPixelY;
+                rawZMm = frame.relative.dz_px * mmPerPixelZ;
             }
+
+            // Track raw uncalibrated position for future calibration
+            if (frame.tracking_valid && recentRawPositions != null && recentRawPositions.Length > 0)
+            {
+                recentRawPositions[recentPosIndex] = new Vector3(rawXMm, rawYMm, rawZMm);
+                recentPosIndex = (recentPosIndex + 1) % recentRawPositions.Length;
+                recentPosCount = Mathf.Min(recentPosCount + 1, recentRawPositions.Length);
+            }
+
+            // Apply calibration offset
+            float xMm = rawXMm - currentCalibrationOffset.x;
+            float yMm = rawYMm - currentCalibrationOffset.y;
+            float zMm = rawZMm - currentCalibrationOffset.z;
 
             if (invertX)
             {

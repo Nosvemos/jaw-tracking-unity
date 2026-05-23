@@ -81,6 +81,7 @@ namespace JawTracking.UI
 
         private Button loadUpperButton;
         private Button loadLowerButton;
+        private Button clearModelsButton;
         private Button startUdpButton;
         private Button simulationButton;
         private Button pauseMotionButton;
@@ -105,13 +106,14 @@ namespace JawTracking.UI
             BindSimulator();
             BindUdpMotionSource();
             SetupViewportRenderTarget();
-            ScheduleRuntimeScrollbarTheme();
 
             if (appRoot != null)
             {
                 appRoot.RegisterCallback<GeometryChangedEvent>(HandleGeometryChanged);
                 ApplyResponsiveClass(appRoot.resolvedStyle.width);
             }
+
+            UpdateButtonStates();
         }
 
         private void OnDisable()
@@ -155,7 +157,7 @@ namespace JawTracking.UI
             rightRailScroll = documentRoot.Q<ScrollView>("right-rail-scroll");
             if (rightRailScroll != null)
             {
-                rightRailScroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+                rightRailScroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
                 rightRailScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             }
 
@@ -182,6 +184,7 @@ namespace JawTracking.UI
 
             loadUpperButton = documentRoot.Q<Button>("load-upper-button");
             loadLowerButton = documentRoot.Q<Button>("load-lower-button");
+            clearModelsButton = documentRoot.Q<Button>("clear-models-button");
             startUdpButton = documentRoot.Q<Button>("start-udp-button");
             simulationButton = documentRoot.Q<Button>("simulation-button");
             pauseMotionButton = documentRoot.Q<Button>("pause-motion-button");
@@ -218,6 +221,11 @@ namespace JawTracking.UI
                 loadLowerButton.clicked += LoadLowerJaw;
             }
 
+            if (clearModelsButton != null)
+            {
+                clearModelsButton.clicked += ClearModels;
+            }
+
             if (startUdpButton != null)
             {
                 startUdpButton.clicked += ToggleUdp;
@@ -235,12 +243,12 @@ namespace JawTracking.UI
 
             if (calibrateButton != null)
             {
-                calibrateButton.clicked += ShowCalibrationPlaceholder;
+                calibrateButton.clicked += TriggerCalibration;
             }
 
             if (resetCalibrationButton != null)
             {
-                resetCalibrationButton.clicked += ShowResetCalibrationPlaceholder;
+                resetCalibrationButton.clicked += TriggerCalibrationReset;
             }
         }
 
@@ -399,6 +407,11 @@ namespace JawTracking.UI
                 loadLowerButton.clicked -= LoadLowerJaw;
             }
 
+            if (clearModelsButton != null)
+            {
+                clearModelsButton.clicked -= ClearModels;
+            }
+
             if (startUdpButton != null)
             {
                 startUdpButton.clicked -= ToggleUdp;
@@ -416,12 +429,12 @@ namespace JawTracking.UI
 
             if (calibrateButton != null)
             {
-                calibrateButton.clicked -= ShowCalibrationPlaceholder;
+                calibrateButton.clicked -= TriggerCalibration;
             }
 
             if (resetCalibrationButton != null)
             {
-                resetCalibrationButton.clicked -= ShowResetCalibrationPlaceholder;
+                resetCalibrationButton.clicked -= TriggerCalibrationReset;
             }
         }
 
@@ -514,6 +527,25 @@ namespace JawTracking.UI
             modelImportService?.LoadLowerJawFromPicker();
         }
 
+        private void ClearModels()
+        {
+            modelImportService?.ClearModels();
+            if (upperFileLabel != null) upperFileLabel.text = "Üst çene: yüklenmedi";
+            if (lowerFileLabel != null) lowerFileLabel.text = "Alt çene: yüklenmedi";
+            
+            BindModelController();
+            modelController?.ResetPivotToOrigin();
+            ReturnSimulationToRest();
+            simulator?.RefreshRestPose();
+
+            if (viewportEmptyHintLabel != null)
+            {
+                viewportEmptyHintLabel.style.display = DisplayStyle.Flex;
+            }
+
+            UpdateButtonStates();
+        }
+
         private void ToggleUdp()
         {
             BindUdpMotionSource();
@@ -527,6 +559,7 @@ namespace JawTracking.UI
             udpMotionSource.SetMotionPaused(isMotionPaused);
             UpdateUdpButtonText();
             UpdateMotionPauseText();
+            UpdateButtonStates();
 
             if (udpMotionSource.IsReceiving)
             {
@@ -553,6 +586,7 @@ namespace JawTracking.UI
             simulator.SetMotionPaused(isMotionPaused && simulator.IsRunning);
             UpdateSimulationButtonText();
             UpdateMotionPauseText();
+            UpdateButtonStates();
 
             if (simulator.IsRunning)
             {
@@ -593,20 +627,36 @@ namespace JawTracking.UI
             UpdateMotionPauseText();
         }
 
-        private void ShowCalibrationPlaceholder()
+        private void TriggerCalibration()
         {
             ReturnSimulationToRest();
             simulator?.RefreshRestPose();
             ResetMetricValues();
-            SetStatus("Dinlenme pozisyonu kalibre edildi.");
+
+            if (udpMotionSource != null && udpMotionSource.IsReceiving)
+            {
+                udpMotionSource.CalibrateRestPosition();
+            }
+            else
+            {
+                SetStatus("Simülasyon dinlenme pozisyonu kalibre edildi.");
+            }
         }
 
-        private void ShowResetCalibrationPlaceholder()
+        private void TriggerCalibrationReset()
         {
             ReturnSimulationToRest();
             simulator?.RefreshRestPose();
             ResetMetricValues();
-            SetStatus("Kalibrasyon sıfırlandı.");
+
+            if (udpMotionSource != null)
+            {
+                udpMotionSource.ResetCalibration();
+            }
+            else
+            {
+                SetStatus("Kalibrasyon sıfırlandı.");
+            }
         }
 
         private void HandleStatusChanged(string message)
@@ -635,6 +685,7 @@ namespace JawTracking.UI
             HideViewportEmptyHint();
             ReturnSimulationToRest();
             simulator?.RefreshRestPose();
+            UpdateButtonStates();
         }
 
         private void SetStatus(string message)
@@ -670,6 +721,35 @@ namespace JawTracking.UI
                     packetRateLabel.text = nextText;
                 }
             }
+        }
+
+        private void UpdateButtonStates()
+        {
+            bool hasUpper = modelImportService != null && !string.IsNullOrEmpty(modelImportService.UpperJawPath);
+            bool hasLower = modelImportService != null && !string.IsNullOrEmpty(modelImportService.LowerJawPath);
+            bool hasAnyModel = hasUpper || hasLower;
+
+            bool isSimRunning = simulator != null && simulator.IsRunning;
+            bool isUdpRunning = udpMotionSource != null && udpMotionSource.IsReceiving;
+            bool isMotionActive = isSimRunning || isUdpRunning;
+
+            if (clearModelsButton != null)
+                clearModelsButton.SetEnabled(hasAnyModel);
+
+            if (pauseMotionButton != null)
+                pauseMotionButton.SetEnabled(isMotionActive);
+
+            if (calibrateButton != null)
+                calibrateButton.SetEnabled(isUdpRunning);
+
+            if (resetCalibrationButton != null)
+                resetCalibrationButton.SetEnabled(isUdpRunning);
+
+            if (resetPivotButton != null)
+                resetPivotButton.SetEnabled(hasLower);
+
+            if (invertOpeningButton != null)
+                invertOpeningButton.SetEnabled(hasLower);
         }
 
         private void UpdateMotionPauseText()
@@ -1043,7 +1123,6 @@ namespace JawTracking.UI
         private void HandleGeometryChanged(GeometryChangedEvent evt)
         {
             ApplyResponsiveClass(evt.newRect.width);
-            HideRuntimeScrollbars();
             UpdateViewportInputBounds();
         }
 
@@ -1130,61 +1209,6 @@ namespace JawTracking.UI
             UpdateViewportInputBounds();
         }
 
-        private void ScheduleRuntimeScrollbarTheme()
-        {
-            appRoot?.schedule.Execute(HideRuntimeScrollbars).ExecuteLater(100);
-        }
-
-        private void HideRuntimeScrollbars()
-        {
-            if (appRoot == null)
-            {
-                return;
-            }
-
-            VisualElement scrollRoot = rightRailScroll ?? appRoot;
-            VisualElement verticalScroller = scrollRoot.Q<VisualElement>(className: "unity-scroll-view__vertical-scroller");
-            if (verticalScroller == null)
-            {
-                verticalScroller = scrollRoot.Q<VisualElement>(className: "unity-scroller--vertical");
-            }
-
-            if (verticalScroller == null)
-            {
-                return;
-            }
-
-            HideScrollerElement(verticalScroller);
-
-            verticalScroller.Query<VisualElement>(className: "unity-scroller__low-button")
-                .ForEach(HideScrollerButton);
-            verticalScroller.Query<VisualElement>(className: "unity-scroller__high-button")
-                .ForEach(HideScrollerButton);
-            verticalScroller.Query<VisualElement>(className: "unity-scroller__slider")
-                .ForEach(HideScrollerElement);
-            verticalScroller.Query<VisualElement>(className: "unity-base-slider__tracker")
-                .ForEach(HideScrollerElement);
-            verticalScroller.Query<VisualElement>(className: "unity-base-slider__dragger")
-                .ForEach(HideScrollerElement);
-        }
-
-        private static void HideScrollerButton(VisualElement element)
-        {
-            element.style.display = DisplayStyle.None;
-            element.style.width = 0;
-            element.style.height = 0;
-        }
-
-        private static void HideScrollerElement(VisualElement element)
-        {
-            element.style.display = DisplayStyle.None;
-            element.style.width = 0;
-            element.style.minWidth = 0;
-            element.style.maxWidth = 0;
-            element.style.marginLeft = 0;
-            element.style.marginRight = 0;
-        }
-
         private void ResizeViewportRenderTarget()
         {
             if (viewportCamera == null || viewportImage == null || viewportPanel == null)
@@ -1245,18 +1269,16 @@ namespace JawTracking.UI
                 return;
             }
 
-            Rect worldBound = viewportPanel.worldBound;
-            if (worldBound.width <= 1f || worldBound.height <= 1f)
+            orbitCameraController.PointerInViewportChecker = screenPos =>
             {
-                return;
-            }
+                if (viewportPanel == null || viewportPanel.panel == null)
+                {
+                    return false;
+                }
 
-            var screenRect = new Rect(
-                worldBound.xMin,
-                Screen.height - worldBound.yMax,
-                worldBound.width,
-                worldBound.height);
-            orbitCameraController.SetInputScreenRect(screenRect);
+                Vector2 panelPos = UnityEngine.UIElements.RuntimePanelUtils.ScreenToPanel(viewportPanel.panel, screenPos);
+                return viewportPanel.worldBound.Contains(panelPos);
+            };
         }
 
         private void ReframeImportedModelIfPossible()
