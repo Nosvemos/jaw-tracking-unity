@@ -58,7 +58,7 @@ public final class JawFilePickerActivity extends Activity {
     private void openDocumentPicker() {
         String title = getIntent().getStringExtra("title");
         if (title == null || title.length() == 0) {
-            title = "STL Seç";
+            title = "Model Seç";
         }
 
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -69,6 +69,8 @@ public final class JawFilePickerActivity extends Activity {
             "model/stl",
             "application/sla",
             "application/vnd.ms-pki.stl",
+            "model/ply",
+            "application/x-ply",
             "application/octet-stream"
         });
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -103,12 +105,13 @@ public final class JawFilePickerActivity extends Activity {
     private void importPickedFile(Intent data) {
         Uri uri = data.getData();
         String displayName = getDisplayName(uri);
-        if (displayName != null && displayName.length() > 0 && !displayName.toLowerCase(Locale.ROOT).endsWith(".stl")) {
-            sendFailure("Lütfen .stl uzantılı bir dosya seçin.");
-            return;
-        }
-
-        if (displayName == null || displayName.length() == 0) {
+        if (displayName != null && displayName.length() > 0) {
+            String lower = displayName.toLowerCase(Locale.ROOT);
+            if (!lower.endsWith(".stl") && !lower.endsWith(".ply")) {
+                sendFailure("Lütfen .stl veya .ply uzantılı bir dosya seçin.");
+                return;
+            }
+        } else {
             displayName = "selected_model.stl";
         }
 
@@ -123,7 +126,7 @@ public final class JawFilePickerActivity extends Activity {
 
         File outputDirectory = new File(getCacheDir(), "jaw_tracking_imports");
         if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
-            sendFailure("Geçici STL klasörü oluşturulamadı.");
+            sendFailure("Geçici model klasörü oluşturulamadı.");
             return;
         }
 
@@ -132,7 +135,7 @@ public final class JawFilePickerActivity extends Activity {
         try (InputStream inputStream = getContentResolver().openInputStream(uri);
              FileOutputStream outputStream = new FileOutputStream(outputFile)) {
             if (inputStream == null) {
-                sendFailure("Seçilen STL dosyası açılamadı.");
+                sendFailure("Seçilen model dosyası açılamadı.");
                 return;
             }
 
@@ -142,7 +145,7 @@ public final class JawFilePickerActivity extends Activity {
                 outputStream.write(buffer, 0, read);
             }
         } catch (Exception ex) {
-            sendFailure("STL dosyası okunamadı: " + ex.getMessage());
+            sendFailure("Model dosyası okunamadı: " + ex.getMessage());
             return;
         }
 
@@ -168,7 +171,11 @@ public final class JawFilePickerActivity extends Activity {
 
     private static String sanitizeFileName(String fileName) {
         String sanitized = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
-        return sanitized.toLowerCase(Locale.ROOT).endsWith(".stl") ? sanitized : sanitized + ".stl";
+        String lower = sanitized.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".stl") || lower.endsWith(".ply")) {
+            return sanitized;
+        }
+        return sanitized + ".stl";
     }
 
     private static void sendSuccess(String path, String displayName) {

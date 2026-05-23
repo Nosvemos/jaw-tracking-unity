@@ -23,9 +23,17 @@ namespace JawTracking.FileAccess
                     return LoadPly(fileBytes, meshName);
                 }
 
-                return LooksLikeBinaryStl(fileBytes)
-                    ? LoadBinary(fileBytes, meshName)
-                    : LoadAscii(fileBytes, meshName);
+                if (LooksLikeBinaryStl(fileBytes))
+                {
+                    return LoadBinary(fileBytes, meshName);
+                }
+
+                if (LooksLikeAsciiStl(fileBytes))
+                {
+                    return LoadAscii(fileBytes, meshName);
+                }
+
+                return ModelImportResult.Failure("Desteklenmeyen model dosyası formatı. (Sadece STL ve Binary PLY desteklenir)");
             }
             catch (Exception ex)
             {
@@ -35,8 +43,54 @@ namespace JawTracking.FileAccess
 
         private static bool LooksLikePly(byte[] bytes)
         {
-            if (bytes.Length < 4) return false;
-            return bytes[0] == 'p' && bytes[1] == 'l' && bytes[2] == 'y' && bytes[3] == '\n';
+            if (bytes == null || bytes.Length < 3) return false;
+
+            int start = 0;
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                start = 3;
+            }
+            else if (bytes.Length >= 2 && ((bytes[0] == 0xFE && bytes[1] == 0xFF) || (bytes[0] == 0xFF && bytes[1] == 0xFE)))
+            {
+                start = 2;
+            }
+
+            while (start < bytes.Length && (bytes[start] == ' ' || bytes[start] == '\t' || bytes[start] == '\r' || bytes[start] == '\n'))
+            {
+                start++;
+            }
+
+            if (start + 3 > bytes.Length) return false;
+
+            return bytes[start] == 'p' && bytes[start + 1] == 'l' && bytes[start + 2] == 'y';
+        }
+
+        private static bool LooksLikeAsciiStl(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length < 5) return false;
+
+            int start = 0;
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                start = 3;
+            }
+            else if (bytes.Length >= 2 && ((bytes[0] == 0xFE && bytes[1] == 0xFF) || (bytes[0] == 0xFF && bytes[1] == 0xFE)))
+            {
+                start = 2;
+            }
+
+            while (start < bytes.Length && (bytes[start] == ' ' || bytes[start] == '\t' || bytes[start] == '\r' || bytes[start] == '\n'))
+            {
+                start++;
+            }
+
+            if (start + 5 > bytes.Length) return false;
+
+            return (bytes[start] == 's' || bytes[start] == 'S') &&
+                   (bytes[start + 1] == 'o' || bytes[start + 1] == 'O') &&
+                   (bytes[start + 2] == 'l' || bytes[start + 2] == 'L') &&
+                   (bytes[start + 3] == 'i' || bytes[start + 3] == 'I') &&
+                   (bytes[start + 4] == 'd' || bytes[start + 4] == 'D');
         }
 
         private static ModelImportResult LoadPly(byte[] bytes, string meshName)
@@ -96,7 +150,36 @@ namespace JawTracking.FileAccess
                     }
                     else if (line == "end_header")
                     {
-                        headerEndIndex = headerStr.IndexOf("end_header") + 11;
+                        int endHeaderPos = -1;
+                        int searchLimit = Math.Min(bytes.Length - 10, 4096);
+                        for (int i = 0; i < searchLimit; i++)
+                        {
+                            if (bytes[i] == 'e' && bytes[i+1] == 'n' && bytes[i+2] == 'd' && bytes[i+3] == '_' &&
+                                bytes[i+4] == 'h' && bytes[i+5] == 'e' && bytes[i+6] == 'a' && bytes[i+7] == 'd' &&
+                                bytes[i+8] == 'e' && bytes[i+9] == 'r')
+                            {
+                                endHeaderPos = i;
+                                break;
+                            }
+                        }
+
+                        if (endHeaderPos != -1)
+                        {
+                            int next = endHeaderPos + 10;
+                            if (next < bytes.Length && bytes[next] == '\r')
+                            {
+                                next++;
+                            }
+                            if (next < bytes.Length && bytes[next] == '\n')
+                            {
+                                next++;
+                            }
+                            headerEndIndex = next;
+                        }
+                        else
+                        {
+                            headerEndIndex = headerStr.IndexOf("end_header") + 11;
+                        }
                         break;
                     }
                 }

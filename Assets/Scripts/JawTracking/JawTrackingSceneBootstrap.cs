@@ -14,8 +14,17 @@ namespace JawTracking
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureScene()
         {
+            ForceStandaloneFullscreen();
             ForceMobileLandscapeOrientation();
             RepairExistingUiDocuments();
+        }
+
+        private static void ForceStandaloneFullscreen()
+        {
+#if UNITY_STANDALONE && !UNITY_EDITOR
+            Screen.fullScreenMode = FullScreenMode.FullScreenWindow;
+            Screen.fullScreen = true;
+#endif
         }
 
         private static void ForceMobileLandscapeOrientation()

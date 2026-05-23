@@ -88,10 +88,6 @@ namespace JawTracking.Visualization
                 float horizontalDistance = radius / Mathf.Sin(Mathf.Max(horizontalFov, 0.1f) * 0.5f);
                 float fitDistance = Mathf.Max(verticalDistance, horizontalDistance) * 1.18f;
                 distance = Mathf.Clamp(fitDistance, minDistance, maxDistance);
-
-                // Force front-facing camera angles on model import!
-                yaw = 180f;
-                pitch = 12f;
             }
         }
 

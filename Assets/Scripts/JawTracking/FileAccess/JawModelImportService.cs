@@ -113,57 +113,65 @@ namespace JawTracking.FileAccess
 
         public async Task LoadFromPickerAsync(JawModelRole role)
         {
-            string roleName = "Model";
-            if (role == JawModelRole.UpperJaw) roleName = "Üst çene modeli";
-            else if (role == JawModelRole.LowerJaw) roleName = "Alt çene modeli";
-            else if (role == JawModelRole.BiteScan1) roleName = "1. Isırma modeli";
-            else if (role == JawModelRole.BiteScan2) roleName = "2. Isırma modeli";
-
-            StatusChanged?.Invoke($"{roleName} dosyası seçiliyor...");
-
-            JawFilePickResult pickResult = await filePicker.PickModelFileAsync(role, destroyCancellation.Token);
-            if (pickResult.Cancelled)
+            try
             {
-                StatusChanged?.Invoke("Dosya seçimi iptal edildi.");
-                return;
-            }
+                string roleName = "Model";
+                if (role == JawModelRole.UpperJaw) roleName = "Üst çene modeli";
+                else if (role == JawModelRole.LowerJaw) roleName = "Alt çene modeli";
+                else if (role == JawModelRole.BiteScan1) roleName = "1. Isırma modeli";
+                else if (role == JawModelRole.BiteScan2) roleName = "2. Isırma modeli";
 
-            if (!pickResult.Success)
-            {
-                StatusChanged?.Invoke(pickResult.ErrorMessage);
-                return;
-            }
+                StatusChanged?.Invoke($"{roleName} dosyası seçiliyor...");
 
-            ModelImportResult importResult = meshLoader.LoadMesh(pickResult.Bytes, roleName);
+                JawFilePickResult pickResult = await filePicker.PickModelFileAsync(role, destroyCancellation.Token);
+                if (pickResult.Cancelled)
+                {
+                    StatusChanged?.Invoke("Dosya seçimi iptal edildi.");
+                    return;
+                }
 
-            if (!importResult.Success)
-            {
-                StatusChanged?.Invoke(importResult.ErrorMessage);
+                if (!pickResult.Success)
+                {
+                    StatusChanged?.Invoke(pickResult.ErrorMessage);
+                    return;
+                }
+
+                ModelImportResult importResult = meshLoader.LoadMesh(pickResult.Bytes, roleName);
+
+                if (!importResult.Success)
+                {
+                    StatusChanged?.Invoke(importResult.ErrorMessage);
+                    ModelImportCompleted?.Invoke(role, importResult, pickResult.Path);
+                    return;
+                }
+
+                ApplyMesh(role, importResult.Mesh);
+                if (role == JawModelRole.UpperJaw)
+                {
+                    UpperJawPath = pickResult.Path;
+                }
+                else if (role == JawModelRole.LowerJaw)
+                {
+                    LowerJawPath = pickResult.Path;
+                }
+                else if (role == JawModelRole.BiteScan1)
+                {
+                    BiteScan1Path = pickResult.Path;
+                }
+                else if (role == JawModelRole.BiteScan2)
+                {
+                    BiteScan2Path = pickResult.Path;
+                }
+
+                StatusChanged?.Invoke($"{roleName} yüklendi. Üçgen: {importResult.TriangleCount:N0}");
+                FrameCameraIfPossible();
                 ModelImportCompleted?.Invoke(role, importResult, pickResult.Path);
-                return;
             }
-
-            ApplyMesh(role, importResult.Mesh);
-            if (role == JawModelRole.UpperJaw)
+            catch (Exception ex)
             {
-                UpperJawPath = pickResult.Path;
+                StatusChanged?.Invoke($"Yükleme hatası: {ex.Message}");
+                Debug.LogError($"Model yükleme hatası: {ex.Message}\n{ex.StackTrace}");
             }
-            else if (role == JawModelRole.LowerJaw)
-            {
-                LowerJawPath = pickResult.Path;
-            }
-            else if (role == JawModelRole.BiteScan1)
-            {
-                BiteScan1Path = pickResult.Path;
-            }
-            else if (role == JawModelRole.BiteScan2)
-            {
-                BiteScan2Path = pickResult.Path;
-            }
-
-            StatusChanged?.Invoke($"{roleName} yüklendi. Üçgen: {importResult.TriangleCount:N0}");
-            FrameCameraIfPossible();
-            ModelImportCompleted?.Invoke(role, importResult, pickResult.Path);
         }
 
         private void ApplyMesh(JawModelRole role, Mesh mesh)
@@ -189,28 +197,38 @@ namespace JawTracking.FileAccess
             MeshRenderer renderer = target.GetComponent<MeshRenderer>();
             if (renderer != null)
             {
-                Material customMat = null;
+                Material baseMat = material != null ? material : CreateFallbackMaterial(role);
+                Color baseColor = GetMaterialColorSafe(baseMat);
+
+                Material customMat = new Material(baseMat);
+                Shader customShader = Shader.Find("Custom/URPVertexColorLit");
+                if (customShader != null)
+                {
+                    customMat.shader = customShader;
+                }
+
                 if (mesh.colors.Length > 0)
                 {
-                    customMat = CreateVertexColorMaterial();
                     customMat.SetFloat("_UseVertexColor", 1.0f);
+                    if (customMat.HasProperty("_BaseColor"))
+                    {
+                        customMat.SetColor("_BaseColor", Color.white);
+                    }
+                    if (customMat.HasProperty("_Color"))
+                    {
+                        customMat.SetColor("_Color", Color.white);
+                    }
                 }
                 else
                 {
-                    Material baseMat = material != null ? material : CreateFallbackMaterial(role);
-                    Color baseColor = GetMaterialColorSafe(baseMat);
-
-                    customMat = new Material(baseMat);
-                    Shader customShader = Shader.Find("Custom/URPVertexColorLit");
-                    if (customShader != null)
-                    {
-                        customMat.shader = customShader;
-                    }
                     customMat.SetFloat("_UseVertexColor", 0.0f);
-
                     if (customMat.HasProperty("_BaseColor"))
                     {
                         customMat.SetColor("_BaseColor", baseColor);
+                    }
+                    if (customMat.HasProperty("_Color"))
+                    {
+                        customMat.SetColor("_Color", baseColor);
                     }
                 }
 
@@ -448,31 +466,46 @@ namespace JawTracking.FileAccess
             }
         }
 
-        private static Material CreateVertexColorMaterial()
+
+
+        private Material CreateFallbackMaterial(JawModelRole role)
         {
             Shader shader = Shader.Find("Custom/URPVertexColorLit");
-            if (shader == null)
+            
+            if (shader == null && upperJawMaterial != null)
             {
-                shader = Shader.Find("Universal Render Pipeline/Unlit");
+                shader = upperJawMaterial.shader;
+            }
+            if (shader == null && lowerJawMaterial != null)
+            {
+                shader = lowerJawMaterial.shader;
             }
             if (shader == null)
             {
-                shader = Shader.Find("Unlit/Color");
+                shader = Shader.Find("Universal Render Pipeline/Lit");
             }
-
-            var material = new Material(shader)
-            {
-                name = "VertexColorMaterial"
-            };
-            return material;
-        }
-
-        private static Material CreateFallbackMaterial(JawModelRole role)
-        {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null)
             {
                 shader = Shader.Find("Standard");
+            }
+
+            // If we still don't have a shader but have valid materials, duplicate one as the base to prevent crash!
+            if (shader == null)
+            {
+                if (upperJawMaterial != null)
+                {
+                    return new Material(upperJawMaterial) { name = "BiteScan Fallback (Upper Copy)" };
+                }
+                if (lowerJawMaterial != null)
+                {
+                    return new Material(lowerJawMaterial) { name = "BiteScan Fallback (Lower Copy)" };
+                }
+            }
+
+            // If we absolutely have no other option, use Hidden/InternalErrorShader
+            if (shader == null)
+            {
+                shader = Shader.Find("Hidden/InternalErrorShader");
             }
 
             string matName = "Model Varsayılan";
@@ -499,11 +532,20 @@ namespace JawTracking.FileAccess
                 matColor = new Color(0.65f, 0.85f, 0.65f, 0.65f); // Transparent green
             }
 
-            var material = new Material(shader)
+            var material = new Material(shader != null ? shader : Shader.Find("Hidden/InternalErrorShader"))
             {
-                name = matName,
-                color = matColor
+                name = matName
             };
+
+            // Set color properties safely
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", matColor);
+            }
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", matColor);
+            }
 
             if (matColor.a < 1f)
             {

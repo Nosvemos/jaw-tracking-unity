@@ -40,30 +40,52 @@ namespace JawTracking.Editor
 
         private static bool CreateMaterialIfMissing(string path, string materialName, Color baseColor, float metallic, float smoothness)
         {
-            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null)
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool isNew = false;
+
+            Shader customShader = Shader.Find("Custom/URPVertexColorLit");
+            if (customShader == null)
             {
-                return false;
+                customShader = Shader.Find("Universal Render Pipeline/Lit");
+            }
+            if (customShader == null)
+            {
+                customShader = Shader.Find("Standard");
             }
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null)
+            if (material == null)
             {
-                shader = Shader.Find("Standard");
+                material = new Material(customShader)
+                {
+                    name = materialName
+                };
+                isNew = true;
+            }
+            else if (material.shader != customShader && customShader != null)
+            {
+                material.shader = customShader;
+                isNew = true;
             }
 
-            var material = new Material(shader)
+            if (isNew)
             {
-                name = materialName
-            };
+                SetColorIfPresent(material, "_BaseColor", baseColor);
+                SetColorIfPresent(material, "_Color", baseColor);
+                SetFloatIfPresent(material, "_Metallic", metallic);
+                SetFloatIfPresent(material, "_Smoothness", smoothness);
+                SetFloatIfPresent(material, "_Glossiness", smoothness);
 
-            SetColorIfPresent(material, "_BaseColor", baseColor);
-            SetColorIfPresent(material, "_Color", baseColor);
-            SetFloatIfPresent(material, "_Metallic", metallic);
-            SetFloatIfPresent(material, "_Smoothness", smoothness);
-            SetFloatIfPresent(material, "_Glossiness", smoothness);
+                if (AssetDatabase.LoadAssetAtPath<Material>(path) == null)
+                {
+                    AssetDatabase.CreateAsset(material, path);
+                }
+                else
+                {
+                    EditorUtility.SetDirty(material);
+                }
+            }
 
-            AssetDatabase.CreateAsset(material, path);
-            return true;
+            return isNew;
         }
 
         private static void SetColorIfPresent(Material material, string propertyName, Color value)
