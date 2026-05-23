@@ -41,6 +41,8 @@ namespace JawTracking.UI
         private Label viewportEmptyHintLabel;
         private Label upperFileLabel;
         private Label lowerFileLabel;
+        private Label biteScan1FileLabel;
+        private Label biteScan2FileLabel;
         private Label openingValueLabel;
         private Label lateralValueLabel;
         private Label protrusionValueLabel;
@@ -81,6 +83,8 @@ namespace JawTracking.UI
 
         private Button loadUpperButton;
         private Button loadLowerButton;
+        private Button loadBiteScan1Button;
+        private Button loadBiteScan2Button;
         private Button clearModelsButton;
         private Button startUdpButton;
         private Button simulationButton;
@@ -165,6 +169,8 @@ namespace JawTracking.UI
             viewportEmptyHintLabel = documentRoot.Q<Label>("viewport-empty-hint");
             upperFileLabel = documentRoot.Q<Label>("upper-file-label");
             lowerFileLabel = documentRoot.Q<Label>("lower-file-label");
+            biteScan1FileLabel = documentRoot.Q<Label>("bite1-file-label");
+            biteScan2FileLabel = documentRoot.Q<Label>("bite2-file-label");
             openingValueLabel = documentRoot.Q<Label>("opening-value");
             lateralValueLabel = documentRoot.Q<Label>("lateral-value");
             protrusionValueLabel = documentRoot.Q<Label>("protrusion-value");
@@ -184,6 +190,8 @@ namespace JawTracking.UI
 
             loadUpperButton = documentRoot.Q<Button>("load-upper-button");
             loadLowerButton = documentRoot.Q<Button>("load-lower-button");
+            loadBiteScan1Button = documentRoot.Q<Button>("load-bite1-button");
+            loadBiteScan2Button = documentRoot.Q<Button>("load-bite2-button");
             clearModelsButton = documentRoot.Q<Button>("clear-models-button");
             startUdpButton = documentRoot.Q<Button>("start-udp-button");
             simulationButton = documentRoot.Q<Button>("simulation-button");
@@ -219,6 +227,16 @@ namespace JawTracking.UI
             if (loadLowerButton != null)
             {
                 loadLowerButton.clicked += LoadLowerJaw;
+            }
+
+            if (loadBiteScan1Button != null)
+            {
+                loadBiteScan1Button.clicked += LoadBiteScan1;
+            }
+
+            if (loadBiteScan2Button != null)
+            {
+                loadBiteScan2Button.clicked += LoadBiteScan2;
             }
 
             if (clearModelsButton != null)
@@ -407,6 +425,16 @@ namespace JawTracking.UI
                 loadLowerButton.clicked -= LoadLowerJaw;
             }
 
+            if (loadBiteScan1Button != null)
+            {
+                loadBiteScan1Button.clicked -= LoadBiteScan1;
+            }
+
+            if (loadBiteScan2Button != null)
+            {
+                loadBiteScan2Button.clicked -= LoadBiteScan2;
+            }
+
             if (clearModelsButton != null)
             {
                 clearModelsButton.clicked -= ClearModels;
@@ -527,11 +555,23 @@ namespace JawTracking.UI
             modelImportService?.LoadLowerJawFromPicker();
         }
 
+        private void LoadBiteScan1()
+        {
+            modelImportService?.LoadBiteScan1FromPicker();
+        }
+
+        private void LoadBiteScan2()
+        {
+            modelImportService?.LoadBiteScan2FromPicker();
+        }
+
         private void ClearModels()
         {
             modelImportService?.ClearModels();
             if (upperFileLabel != null) upperFileLabel.text = "Üst çene: yüklenmedi";
             if (lowerFileLabel != null) lowerFileLabel.text = "Alt çene: yüklenmedi";
+            if (biteScan1FileLabel != null) biteScan1FileLabel.text = "Isırma Modeli 1: yüklenmedi";
+            if (biteScan2FileLabel != null) biteScan2FileLabel.text = "Isırma Modeli 2: yüklenmedi";
             
             BindModelController();
             modelController?.ResetPivotToOrigin();
@@ -664,7 +704,7 @@ namespace JawTracking.UI
             SetStatus(message);
         }
 
-        private void HandleModelImportCompleted(JawModelRole role, StlImportResult result, string path)
+        private void HandleModelImportCompleted(JawModelRole role, ModelImportResult result, string path)
         {
             if (!result.Success)
             {
@@ -680,6 +720,14 @@ namespace JawTracking.UI
             else if (role == JawModelRole.LowerJaw && lowerFileLabel != null)
             {
                 lowerFileLabel.text = $"Alt çene: {fileName}";
+            }
+            else if (role == JawModelRole.BiteScan1 && biteScan1FileLabel != null)
+            {
+                biteScan1FileLabel.text = $"Isırma 1: {fileName}";
+            }
+            else if (role == JawModelRole.BiteScan2 && biteScan2FileLabel != null)
+            {
+                biteScan2FileLabel.text = $"Isırma 2: {fileName}";
             }
 
             HideViewportEmptyHint();
@@ -727,7 +775,9 @@ namespace JawTracking.UI
         {
             bool hasUpper = modelImportService != null && !string.IsNullOrEmpty(modelImportService.UpperJawPath);
             bool hasLower = modelImportService != null && !string.IsNullOrEmpty(modelImportService.LowerJawPath);
-            bool hasAnyModel = hasUpper || hasLower;
+            bool hasBite1 = modelImportService != null && !string.IsNullOrEmpty(modelImportService.BiteScan1Path);
+            bool hasBite2 = modelImportService != null && !string.IsNullOrEmpty(modelImportService.BiteScan2Path);
+            bool hasAnyModel = hasUpper || hasLower || hasBite1 || hasBite2;
 
             bool isSimRunning = simulator != null && simulator.IsRunning;
             bool isUdpRunning = udpMotionSource != null && udpMotionSource.IsReceiving;
@@ -1428,14 +1478,23 @@ namespace JawTracking.UI
             workspace.Add(rightRail);
 
             VisualElement importPanel = CreatePanel("Model Yükleme");
-            importPanel.Add(CreateButton("load-upper-button", "Üst Çene STL Yükle"));
-            importPanel.Add(CreateButton("load-lower-button", "Alt Çene STL Yükle"));
+            importPanel.Add(CreateButton("load-upper-button", "Üst Çene Taraması Yükle"));
+            importPanel.Add(CreateButton("load-lower-button", "Alt Çene Taraması Yükle"));
+            importPanel.Add(CreateButton("load-bite1-button", "#1 Isırma Taraması Yükle"));
+            importPanel.Add(CreateButton("load-bite2-button", "#2 Isırma Taraması Yükle"));
+            importPanel.Add(CreateButton("clear-models-button", "Modelleri Temizle"));
             upperFileLabel = CreateMutedLabel("Üst çene: yüklenmedi");
             upperFileLabel.name = "upper-file-label";
             lowerFileLabel = CreateMutedLabel("Alt çene: yüklenmedi");
             lowerFileLabel.name = "lower-file-label";
+            biteScan1FileLabel = CreateMutedLabel("Isırma Modeli 1: yüklenmedi");
+            biteScan1FileLabel.name = "bite1-file-label";
+            biteScan2FileLabel = CreateMutedLabel("Isırma Modeli 2: yüklenmedi");
+            biteScan2FileLabel.name = "bite2-file-label";
             importPanel.Add(upperFileLabel);
             importPanel.Add(lowerFileLabel);
+            importPanel.Add(biteScan1FileLabel);
+            importPanel.Add(biteScan2FileLabel);
             rightRail.Add(importPanel);
 
             VisualElement connectionPanel = CreatePanel("Bağlantı");

@@ -23,7 +23,7 @@ namespace JawTracking.FileAccess
         {
             if (bytes == null || bytes.Length == 0)
             {
-                return Failure("STL dosyası boş veya okunamadı.");
+                return Failure("Model dosyası boş veya okunamadı.");
             }
 
             return new JawFilePickResult(true, false, path ?? string.Empty, bytes, string.Empty);

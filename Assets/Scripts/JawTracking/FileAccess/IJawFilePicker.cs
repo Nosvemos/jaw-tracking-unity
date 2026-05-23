@@ -5,6 +5,6 @@ namespace JawTracking.FileAccess
 {
     public interface IJawFilePicker
     {
-        Task<JawFilePickResult> PickStlFileAsync(JawModelRole role, CancellationToken cancellationToken);
+        Task<JawFilePickResult> PickModelFileAsync(JawModelRole role, CancellationToken cancellationToken);
     }
 }

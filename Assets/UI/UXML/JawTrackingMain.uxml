@@ -44,11 +44,15 @@
                         <ui:Label name="model-section-icon" text="-" class="accordion-icon" />
                     </ui:VisualElement>
                     <ui:VisualElement name="model-section-body" class="accordion-body">
-                    <ui:Button name="load-upper-button" text="Üst Çene STL Yükle" class="primary-button" />
-                    <ui:Button name="load-lower-button" text="Alt Çene STL Yükle" class="primary-button" />
+                    <ui:Button name="load-upper-button" text="Üst Çene Taraması Yükle" class="primary-button" />
+                    <ui:Button name="load-lower-button" text="Alt Çene Taraması Yükle" class="primary-button" />
+                    <ui:Button name="load-bite1-button" text="#1 Isırma Taraması Yükle" class="secondary-button" />
+                    <ui:Button name="load-bite2-button" text="#2 Isırma Taraması Yükle" class="secondary-button" />
                     <ui:Button name="clear-models-button" text="Modelleri Temizle" class="secondary-button" />
                     <ui:Label name="upper-file-label" text="Üst çene: yüklenmedi" class="muted-text file-label" />
                     <ui:Label name="lower-file-label" text="Alt çene: yüklenmedi" class="muted-text file-label" />
+                    <ui:Label name="bite1-file-label" text="Isırma Modeli 1: yüklenmedi" class="muted-text file-label" />
+                    <ui:Label name="bite2-file-label" text="Isırma Modeli 2: yüklenmedi" class="muted-text file-label" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

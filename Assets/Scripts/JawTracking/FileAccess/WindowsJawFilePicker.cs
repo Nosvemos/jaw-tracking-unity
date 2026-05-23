@@ -11,7 +11,7 @@ namespace JawTracking.FileAccess
     public sealed class WindowsJawFilePicker : IJawFilePicker
     {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-        public async Task<JawFilePickResult> PickStlFileAsync(JawModelRole role, CancellationToken cancellationToken)
+        public async Task<JawFilePickResult> PickModelFileAsync(JawModelRole role, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -27,7 +27,11 @@ namespace JawTracking.FileAccess
                 await Task.Delay(250);
             }
 
-            string title = role == JawModelRole.UpperJaw ? "Üst Çene STL Seç" : "Alt Çene STL Seç";
+            string title = "Model Seç";
+            if (role == JawModelRole.UpperJaw) title = "Üst Çene Modeli Seç";
+            else if (role == JawModelRole.LowerJaw) title = "Alt Çene Modeli Seç";
+            else if (role == JawModelRole.BiteScan1) title = "1. Isırma Modeli Seç";
+            else if (role == JawModelRole.BiteScan2) title = "2. Isırma Modeli Seç";
             try
             {
                 WindowsPickResult pickResult = await PickPathWithExternalDialogAsync(title, cancellationToken);
@@ -47,9 +51,10 @@ namespace JawTracking.FileAccess
                     return JawFilePickResult.Cancel();
                 }
 
-                if (!pickResult.Path.EndsWith(".stl", StringComparison.OrdinalIgnoreCase))
+                if (!pickResult.Path.EndsWith(".stl", StringComparison.OrdinalIgnoreCase) &&
+                    !pickResult.Path.EndsWith(".ply", StringComparison.OrdinalIgnoreCase))
                 {
-                    return JawFilePickResult.Failure("Lütfen .stl uzantılı bir dosya seçin.");
+                    return JawFilePickResult.Failure("Lütfen .stl veya .ply uzantılı bir model dosyası seçin.");
                 }
 
                 try
@@ -58,7 +63,7 @@ namespace JawTracking.FileAccess
                 }
                 catch (Exception ex)
                 {
-                    return JawFilePickResult.Failure($"STL dosyası okunamadı: {ex.Message}");
+                    return JawFilePickResult.Failure($"Model dosyası okunamadı: {ex.Message}");
                 }
             }
             catch (OperationCanceledException)
@@ -75,7 +80,7 @@ namespace JawTracking.FileAccess
             }
         }
 #else
-        public Task<JawFilePickResult> PickStlFileAsync(JawModelRole role, CancellationToken cancellationToken)
+        public Task<JawFilePickResult> PickModelFileAsync(JawModelRole role, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -156,7 +161,7 @@ namespace JawTracking.FileAccess
                 "Add-Type -AssemblyName System.Windows.Forms\r\n" +
                 "$dialog = New-Object System.Windows.Forms.OpenFileDialog\r\n" +
                 "$dialog.Title = " + ToPowerShellString(title) + "\r\n" +
-                "$dialog.Filter = 'STL Dosyaları (*.stl)|*.stl|Tüm Dosyalar (*.*)|*.*'\r\n" +
+                "$dialog.Filter = '3D Modeller (*.stl;*.ply)|*.stl;*.ply|Tüm Dosyalar (*.*)|*.*'\r\n" +
                 "$dialog.CheckFileExists = $true\r\n" +
                 "$dialog.CheckPathExists = $true\r\n" +
                 "$dialog.Multiselect = $false\r\n" +

@@ -11,7 +11,7 @@ namespace JawTracking.FileAccess
         private TaskCompletionSource<JawFilePickResult> pendingPick;
         private CancellationTokenRegistration cancellationRegistration;
 
-        public Task<JawFilePickResult> PickStlFileAsync(JawModelRole role, CancellationToken cancellationToken)
+        public Task<JawFilePickResult> PickModelFileAsync(JawModelRole role, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -32,7 +32,12 @@ namespace JawTracking.FileAccess
 
             try
             {
-                string title = role == JawModelRole.UpperJaw ? "Üst Çene STL Seç" : "Alt Çene STL Seç";
+                string title = "Model Seç";
+                if (role == JawModelRole.UpperJaw) title = "Üst Çene Modeli Seç";
+                else if (role == JawModelRole.LowerJaw) title = "Alt Çene Modeli Seç";
+                else if (role == JawModelRole.BiteScan1) title = "1. Isırma Modeli Seç";
+                else if (role == JawModelRole.BiteScan2) title = "2. Isırma Modeli Seç";
+
                 using var pickerClass = new AndroidJavaClass("com.jawtracking.fileaccess.JawFilePickerActivity");
                 pickerClass.CallStatic("openPicker", title);
             }
@@ -70,7 +75,7 @@ namespace JawTracking.FileAccess
 
             if (string.IsNullOrWhiteSpace(payload.path))
             {
-                CompletePendingPick(JawFilePickResult.Failure("Seçilen STL dosyasının geçici yolu alınamadı."));
+                CompletePendingPick(JawFilePickResult.Failure("Seçilen model dosyasının geçici yolu alınamadı."));
                 return;
             }
 
@@ -80,7 +85,7 @@ namespace JawTracking.FileAccess
             }
             catch (Exception ex)
             {
-                CompletePendingPick(JawFilePickResult.Failure($"STL dosyası okunamadı: {ex.Message}"));
+                CompletePendingPick(JawFilePickResult.Failure($"Model dosyası okunamadı: {ex.Message}"));
             }
         }
 

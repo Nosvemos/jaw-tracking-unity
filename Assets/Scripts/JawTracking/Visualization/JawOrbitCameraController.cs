@@ -13,7 +13,7 @@ namespace JawTracking.Visualization
         [SerializeField] private Vector3 targetOffset = Vector3.zero;
 
         [Header("Orbit")]
-        [SerializeField] private float yaw = 0f;
+        [SerializeField] private float yaw = 180f;
         [SerializeField] private float pitch = 12f;
         [SerializeField] private float minPitch = -35f;
         [SerializeField] private float maxPitch = 65f;
@@ -63,6 +63,13 @@ namespace JawTracking.Visualization
             target = newTarget;
         }
 
+        private void Awake()
+        {
+            controlledCamera = GetComponent<Camera>();
+            yaw = 180f;
+            pitch = 12f;
+        }
+
         public void FrameBounds(Bounds bounds)
         {
             targetOffset = bounds.center;
@@ -81,6 +88,10 @@ namespace JawTracking.Visualization
                 float horizontalDistance = radius / Mathf.Sin(Mathf.Max(horizontalFov, 0.1f) * 0.5f);
                 float fitDistance = Mathf.Max(verticalDistance, horizontalDistance) * 1.18f;
                 distance = Mathf.Clamp(fitDistance, minDistance, maxDistance);
+
+                // Force front-facing camera angles on model import!
+                yaw = 180f;
+                pitch = 12f;
             }
         }
 

@@ -5,9 +5,9 @@ namespace JawTracking.FileAccess
 {
     public sealed class UnsupportedJawFilePicker : IJawFilePicker
     {
-        public Task<JawFilePickResult> PickStlFileAsync(JawModelRole role, CancellationToken cancellationToken)
+        public Task<JawFilePickResult> PickModelFileAsync(JawModelRole role, CancellationToken cancellationToken)
         {
-            return Task.FromResult(JawFilePickResult.Failure("Bu platform için STL dosya seçici desteklenmiyor."));
+            return Task.FromResult(JawFilePickResult.Failure("Bu platform için model dosya seçici desteklenmiyor."));
         }
     }
 }
