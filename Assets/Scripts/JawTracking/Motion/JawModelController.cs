@@ -64,6 +64,18 @@ namespace JawTracking.Motion
             hasRestPose = true;
         }
 
+        public void ResetPivotToOrigin()
+        {
+            AutoWireReferences();
+            if (lowerJawPivot != null)
+            {
+                lowerJawPivot.localPosition = Vector3.zero;
+                lowerJawPivot.localRotation = Quaternion.identity;
+                restPivotLocalPosition = Vector3.zero;
+                restPivotLocalRotation = Quaternion.identity;
+            }
+        }
+
         public void ForceRestPoseImmediate()
         {
             AutoWireReferences();

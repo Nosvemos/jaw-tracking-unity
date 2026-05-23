@@ -130,6 +130,7 @@ namespace JawTracking.UI
             {
                 modelImportService.StatusChanged -= HandleStatusChanged;
                 modelImportService.ModelImportCompleted -= HandleModelImportCompleted;
+                modelImportService.PreMeshApplied -= HandlePreMeshApplied;
             }
 
             if (simulator != null)
@@ -433,8 +434,20 @@ namespace JawTracking.UI
 
             modelImportService.StatusChanged -= HandleStatusChanged;
             modelImportService.ModelImportCompleted -= HandleModelImportCompleted;
+            modelImportService.PreMeshApplied -= HandlePreMeshApplied;
+            
             modelImportService.StatusChanged += HandleStatusChanged;
             modelImportService.ModelImportCompleted += HandleModelImportCompleted;
+            modelImportService.PreMeshApplied += HandlePreMeshApplied;
+        }
+
+        private void HandlePreMeshApplied(JawModelRole role)
+        {
+            if (role == JawModelRole.LowerJaw)
+            {
+                BindModelController();
+                modelController?.ResetPivotToOrigin();
+            }
         }
 
         private void BindSimulator()

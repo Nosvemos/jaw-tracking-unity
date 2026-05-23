@@ -31,6 +31,7 @@ namespace JawTracking.FileAccess
         private CancellationTokenSource destroyCancellation;
 
         public event Action<JawModelRole, StlImportResult, string> ModelImportCompleted;
+        public event Action<JawModelRole> PreMeshApplied;
         public event Action<string> StatusChanged;
 
         public string UpperJawPath { get; private set; } = string.Empty;
@@ -118,6 +119,7 @@ namespace JawTracking.FileAccess
 
         private void ApplyMesh(JawModelRole role, Mesh mesh)
         {
+            PreMeshApplied?.Invoke(role);
             AutoWireSceneReferences();
             MeshFilter target = role == JawModelRole.UpperJaw ? upperJawMeshFilter : lowerJawMeshFilter;
             if (target == null)
