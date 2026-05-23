@@ -110,5 +110,3 @@ InitTestScene*.unity*
 /docs/*
 !/docs/README.md
 
-# Local UDP backend simulator for manual Unity testing.
-/test-server/

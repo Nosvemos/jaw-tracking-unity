@@ -32,25 +32,25 @@ The OpenCV marker detection pipeline is handled outside Unity. Unity receives al
 
 ## Model Setup
 
-STL is the required source model format for this project.
+STL and PLY are the supported source model formats for this project.
 
-The jaw models are not static project assets. The user must be able to load/select the upper and lower jaw `.stl` files at runtime through the app's file import flow. Bundled demo files may exist for testing, but they are optional samples, not the primary workflow.
+The jaw models are not static project assets. The user must be able to load/select the upper and lower jaw `.stl` or `.ply` files at runtime through the app's file import flow. Bundled demo files may exist for testing, but they are optional samples, not the primary workflow.
 
-Do not replace the source workflow with FBX, OBJ, or GLB. If a cached runtime mesh or generated Unity asset is needed for performance, it should be treated as a derived cache while the original user-provided STL remains the source of truth.
+Do not replace the source workflow with FBX, OBJ, or GLB. If a cached runtime mesh or generated Unity asset is needed for performance, it should be treated as a derived cache while the original user-provided STL/PLY remains the source of truth.
 
 Keep the original model geometry intact. Alignment, scaling, and pivot correction should be handled through parent GameObjects in Unity.
 
 ## File Import
 
-The app should include a file explorer/import flow so STL jaw models can be selected by the user.
+The app should include a file explorer/import flow so STL and PLY jaw models can be selected by the user.
 
 The file import layer must be platform-aware:
 
 - Desktop: Windows, macOS, and Linux.
 - Mobile: Android and iOS document picker support.
-- Editor: a simple development path for testing local STL files.
+- Editor: a simple development path for testing local STL/PLY files.
 
-The project may use a ready-made Unity package for file picking and STL parsing, or a custom implementation if package constraints make that safer.
+The project may use a ready-made Unity package for file picking and STL/PLY parsing, or a custom implementation if package constraints make that safer.
 
 ## UI Approach
 
