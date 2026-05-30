@@ -106,7 +106,6 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
-# Local project planning docs. Keep the public docs index trackable.
-/docs/*
-!/docs/README.md
+# Local project planning docs and technical specifications
+/docs/
 

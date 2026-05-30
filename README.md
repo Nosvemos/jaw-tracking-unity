@@ -30,6 +30,17 @@ The system is engineered to provide researchers and clinicians with real-time, a
 - **Architecture:** Modular C# backend with a strict separation between data ingestion, motion mapping, and UI visualization.
 - **Network Protocol:** UDP (Listening on `0.0.0.0:5055`), optimized for high-frequency JSON or CSV packet ingestion on background threads.
 
+## Getting Started
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/KULLANICI_ADIN/jaw-tracking-unity.git
+   ```
+2. **Open in Unity:**
+   Open Unity Hub, click "Add project from disk," and select the cloned directory. Ensure you are using Unity 2022.3 LTS or newer.
+3. **Run Simulation Mode:**
+   Open the main scene and press Play. You can test the visualization pipeline using the built-in simulation mode without needing the live UDP OpenCV backend.
+
 ## Medical Model Workflow
 
 Unlike standard game development pipelines, this project prioritizes data integrity for health research:
@@ -58,6 +69,16 @@ The client expects a continuous stream of processed pose or relative pixel/angle
 }
 ```
 *(Refer to the technical documentation for complete schema specifications.)*
+
+## Contributing
+
+We welcome contributions from the global research and developer community! Whether it's optimizing 3D math, improving the UI Toolkit elements, or adding new data filtering algorithms, your pull requests are appreciated. Please open an issue first to discuss major changes.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## Disclaimer
 
