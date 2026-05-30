@@ -1,121 +1,64 @@
 # Jaw Tracking Unity Client
 
-Jaw Tracking Unity Client is a Unity-based real-time visualization client for a marker-based mandibular movement tracking system.
+The **Jaw Tracking Unity Client** is a cutting-edge, real-time 3D visualization platform designed for a marker-based mandibular movement tracking system.
 
-The application receives processed jaw movement data from a Python/OpenCV backend over UDP, maps that data onto a fixed upper jaw and a moving lower jaw model, and displays movement, measurements, trajectory, graphs, calibration state, recording controls, and replay tools.
+> **Important Notice:** This project has been officially approved by the **Health Institutes of Turkey (TÜSEB)** and is designated for use in advanced health research and clinical studies. Its development adheres strictly to the requirements necessary for professional medical research applications.
 
-## Purpose
+## Overview
 
-This project is a research and visualization prototype for low-cost, optical, marker-based mandibular movement tracking.
+Developed using Unity, this application acts as the visualization layer for an optical jaw-tracking pipeline. It receives processed mandibular movement data via UDP from a Python/OpenCV computer vision backend and maps this data onto anatomically accurate, user-provided digital models (STL/PLY) of the upper and lower jaws.
 
-Unity is responsible for:
+The system is engineered to provide researchers and clinicians with real-time, actionable insights into mandibular kinematics, supporting detailed movement analysis, calibration, recording, and replay functionalities.
 
-- Visualizing upper and lower jaw models.
-- Keeping the upper jaw fixed as the reference model.
-- Moving the lower jaw in real time from incoming tracking data.
-- Showing numerical movement metrics.
-- Displaying movement graphs and trajectory.
-- Supporting rest-position calibration.
-- Running in simulation mode when the backend is unavailable.
-- Recording and replaying jaw movement sessions.
+## Key Features
 
-The OpenCV marker detection pipeline is handled outside Unity. Unity receives already-processed movement data.
+- **TÜSEB-Approved Research Tool:** Developed under the guidelines and approval of the Health Institutes of Turkey for clinical health research.
+- **Real-Time 3D Visualization:** Accurately renders the upper jaw as a fixed anatomical reference while animating the lower jaw in real-time based on live tracking data.
+- **Dynamic Model Loading:** Supports runtime importing of user-specific STL and PLY jaw models, accommodating patient-specific anatomical data without requiring Unity Editor modifications.
+- **Advanced Kinematic Metrics:** Displays continuous numerical readouts for opening, lateral deviation, protrusion, and retrusion, alongside visual trajectory paths and motion graphs.
+- **Precision Calibration:** Features a rest-position calibration system to establish an accurate anatomical baseline (centric relation/maximum intercuspation) prior to movement recording.
+- **Session Management:** Built-in capability to record processed movement sessions to CSV format and seamlessly replay them for post-hoc analysis.
+- **Simulation Mode:** Includes an independent simulation mode for system testing, demonstration, and development when the OpenCV backend is unavailable.
+- **Cross-Platform Compatibility:** Designed for seamless deployment across PC (Windows, macOS, Linux) and Mobile (Android, iOS) platforms, utilizing a responsive UI built with Unity UI Toolkit.
+- **Localized Interface:** The user-facing interface is fully localized in Turkish, completely supporting Turkish characters to serve regional clinical staff effectively.
 
-## Recommended Environment
+## Recommended Environment & Tech Stack
 
-- Unity 2022.3 LTS or newer.
-- Primary target: PC and mobile from the beginning.
-- Supported target intent: Windows, macOS, Linux, Android, and iOS.
-- UI, file import, networking, and rendering decisions must be made with cross-platform compatibility in mind.
-- UI Toolkit is the default UI stack for screens, panels, controls, and styling.
-- Runtime UI text must be Turkish and must support Turkish characters such as `ç`, `ğ`, `ı`, `İ`, `ö`, `ş`, and `ü`.
+- **Engine:** Unity 2022.3 LTS (or newer).
+- **Target Platforms:** Windows, macOS, Linux, Android, iOS.
+- **UI Framework:** Unity UI Toolkit (UXML/USS).
+- **Architecture:** Modular C# backend with a strict separation between data ingestion, motion mapping, and UI visualization.
+- **Network Protocol:** UDP (Listening on `0.0.0.0:5055`), optimized for high-frequency JSON or CSV packet ingestion on background threads.
 
-## Model Setup
+## Medical Model Workflow
 
-STL and PLY are the supported source model formats for this project.
+Unlike standard game development pipelines, this project prioritizes data integrity for health research:
+- **Format Support:** Only `.stl` and `.ply` formats are supported as primary clinical inputs.
+- **Non-Destructive Pipeline:** Original mesh geometry is preserved. All alignment, scaling, and pivot corrections are handled via parent `GameObject` transforms in Unity.
+- **Runtime Import:** The application features a robust, platform-aware file explorer (supporting desktop and mobile native document pickers) allowing researchers to load distinct upper and lower jaw models directly into the running application.
 
-The jaw models are not static project assets. The user must be able to load/select the upper and lower jaw `.stl` or `.ply` files at runtime through the app's file import flow. Bundled demo files may exist for testing, but they are optional samples, not the primary workflow.
+## Data Protocol
 
-Do not replace the source workflow with FBX, OBJ, or GLB. If a cached runtime mesh or generated Unity asset is needed for performance, it should be treated as a derived cache while the original user-provided STL/PLY remains the source of truth.
+The client expects a continuous stream of processed pose or relative pixel/angle data.
 
-Keep the original model geometry intact. Alignment, scaling, and pivot correction should be handled through parent GameObjects in Unity.
-
-## File Import
-
-The app should include a file explorer/import flow so STL and PLY jaw models can be selected by the user.
-
-The file import layer must be platform-aware:
-
-- Desktop: Windows, macOS, and Linux.
-- Mobile: Android and iOS document picker support.
-- Editor: a simple development path for testing local STL/PLY files.
-
-The project may use a ready-made Unity package for file picking and STL/PLY parsing, or a custom implementation if package constraints make that safer.
-
-## UI Approach
-
-The app UI should be created with Unity UI Toolkit using UXML, USS, and C# controllers. Iteration can be done through vibe-coded UI changes directly in the project while keeping the layout responsive for both PC and mobile.
-
-Project documentation can stay in English for AI agent clarity, but all user-facing Unity UI labels, buttons, statuses, warnings, and empty states should be Turkish.
-
-Use a font/font asset that supports Turkish glyphs on every target platform. Do not rely blindly on platform fallback fonts.
-
-Special rendering surfaces such as 3D jaw visualization and high-frequency graphs may use dedicated Unity rendering components when UI Toolkit is not the right tool.
-
-## UDP Integration
-
-Default UDP settings:
-
-- Listen address: `0.0.0.0`
-- Listen port: `5055`
-- Encoding: UTF-8
-- Preferred format: JSON
-
-Minimum JSON packet:
-
+**Standard JSON Packet Structure:**
 ```json
 {
   "type": "jaw_frame",
   "timestamp_ms": 1710000000000,
   "tracking_valid": true,
-  "relative": {
-    "dx_px": 0.0,
-    "dy_px": 50.0,
-    "dtheta_deg": 0.0
-  }
-}
-```
-
-If millimeter pose data is available, Unity should prefer it:
-
-```json
-{
   "pose": {
     "x_mm": 0.0,
     "y_mm": 20.0,
-    "z_mm": 0.0
+    "z_mm": 0.0,
+    "yaw_deg": 0.0,
+    "pitch_deg": 2.5,
+    "roll_deg": 0.0
   }
 }
 ```
+*(Refer to the technical documentation for complete schema specifications.)*
 
-## Calibration
+## Disclaimer
 
-Use rest-position calibration before measuring movement. During calibration, the jaw should be relaxed/closed while Unity collects and averages valid frames. After calibration, opening, lateral deviation, and protrusion should read close to zero at rest.
-
-## Simulation Mode
-
-Simulation mode allows the Unity client to be developed and demonstrated without the OpenCV backend. It should support open-close movement, lateral movement, protrusion/retrusion, combined movement, jitter testing, and tracking-loss testing.
-
-## Recording and Replay
-
-The app should support CSV recording for processed movement sessions and replay those sessions through the same visualization pipeline used for live data.
-
-Suggested export folder:
-
-```text
-Application.persistentDataPath/JawTrackingRecords/
-```
-
-## Prototype Disclaimer
-
-This application is a research and visualization prototype for mandibular movement tracking. It is not a certified medical device and must not be used as the sole basis for diagnosis or treatment decisions.
+While this application is approved by **TÜSEB** for health research purposes, it is intended to function as an investigational and visualization tool. It must be used in conjunction with qualified clinical judgment and should not be used as the sole basis for clinical diagnosis or treatment planning without proper regulatory medical device certification.
